@@ -53,9 +53,9 @@
     transition:background 60ms linear;
   }
 
-  .glow-cyan{ color:var(--neon-cyan); text-shadow:0 0 6px var(--neon-cyan), 0 0 14px rgba(61,245,255,0.6); }
-  .glow-magenta{ color:var(--neon-magenta); text-shadow:0 0 6px var(--neon-magenta), 0 0 14px rgba(255,47,208,0.6); }
-  .glow-yellow{ color:var(--neon-yellow); text-shadow:0 0 6px var(--neon-yellow), 0 0 14px rgba(255,233,61,0.6); }
+  .glow-cyan{ color:var(--neon-cyan); font-weight:700; text-shadow:0 0 1px #fff, 0 0 6px var(--neon-cyan), 0 0 16px rgba(61,245,255,0.85); }
+  .glow-magenta{ color:var(--neon-magenta); font-weight:700; text-shadow:0 0 1px #fff, 0 0 6px var(--neon-magenta), 0 0 16px rgba(255,47,208,0.85); }
+  .glow-yellow{ color:var(--neon-yellow); font-weight:700; text-shadow:0 0 1px #fff, 0 0 6px var(--neon-yellow), 0 0 16px rgba(255,233,61,0.85); }
 
   #overlay{
     position:absolute; inset:0; display:flex; flex-direction:column;
@@ -80,6 +80,7 @@
     padding:10px 14px; font-size:clamp(10px,2vw,16px); letter-spacing:2px; pointer-events:none;
   }
   #hud span{ display:block; }
+  #levelLine{ max-width:38%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
 
   #touch{
     position:absolute; bottom:14px; left:0; right:0; display:none;
@@ -131,7 +132,7 @@
     </div>
     <div id="menuText" class="legend">
       ARROWS / A-D : MOVE&nbsp;&nbsp;&nbsp; SPACE : FIRE&nbsp;&nbsp;&nbsp; P : PAUSE&nbsp;&nbsp;&nbsp; M : MUTE<br>
-      VEX RETURNS FIRE · DODGE MINES &amp; ASTEROIDS · A BOSS AWAITS EVERY 3RD SECTOR
+      GRAB WEAPON DROPS FROM FALLEN CRITTERS · A NEW BOSS RISES EVERY 3RD SECTOR
     </div>
     <div id="startPrompt" class="blink glow-yellow">PRESS SPACE TO LAUNCH</div>
     <div id="finalScoreWrap" class="hidden">
@@ -181,6 +182,18 @@
   ];
   const MINE = { key:'mine', r:17, speed:1.3, wobble:0.5, hp:1, color:'#ff2f2f' };
   const ASTEROID = { key:'asteroid', r:20, score:5, speed:1.0, wobble:0.15, hp:2, color:'#9aa3ba' };
+
+  const WEAPONS = {
+    blaster: { label:'BLASTER', color:'#3df5ff', cooldown:9,  damage:1 },
+    pulse:   { label:'PULSE',   color:'#ffe93d', cooldown:3,  damage:1 },
+    spread:  { label:'SPREAD',  color:'#ff5fb0', cooldown:14, damage:1 },
+    homing:  { label:'HOMING',  color:'#3dff8a', cooldown:22, damage:3 },
+  };
+  const PICKUP_WEAPONS = ['pulse', 'spread', 'homing'];
+  const WEAPON_DURATION = 720;
+
+  const BOSS_TYPE_KEYS = ['hex', 'serpent', 'crystal'];
+  const BOSS_LABELS = { hex:'HEX CORE', serpent:'VOID SERPENT', crystal:'CRYSTAL SENTINEL' };
 
   let audioCtx = null, masterGain = null, muted = false;
   function ensureAudio(){
@@ -262,6 +275,10 @@
     noiseBurst({dur:0.4, freq:800, gain:0.16});
     [520,660,780,940].forEach((f,i)=> setTimeout(()=>beep({freq:f, dur:0.2, type:'square', gain:0.08}), i*120));
   }
+  function sfxPickup(){
+    beep({freq:600, slideTo:1000, dur:0.15, type:'triangle', gain:0.06});
+    beep({freq:900, slideTo:1400, dur:0.1, type:'sine', gain:0.04, delay:0.06});
+  }
 
   // Pachelbel's Canon in D ground bass (public domain): D - A - B - F# - G - D - G - A
   const bassline = [73.42, 55.00, 61.74, 46.25, 49.00, 73.42, 49.00, 55.00];
@@ -319,19 +336,20 @@
     z: 0.4 + Math.random()*1.8, size: Math.random()<0.15?2:1
   }));
 
-  const player = { x: W/2, y: H-64, w: 34, h: 30, speed: 5.4, thrust: 0, invulnT: 0 };
+  const player = { x: W/2, y: H-64, w: 34, h: 30, speed: 5.4, thrust: 0, invulnT: 0, weapon: 'blaster', weaponT: 0 };
   let bullets = [];
   let critters = [];
   let enemyBullets = [];
   let particles = [];
+  let pickups = [];
 
   let highScore = 0;
   try { highScore = parseInt(localStorage.getItem('sfb_highscore')||'0',10) || 0; } catch(e){}
 
   function resetGame(){
     score = 0; lives = 3; level = 1; frame = 0;
-    bullets = []; critters = []; enemyBullets = []; particles = [];
-    player.x = W/2; player.y = H-64; player.invulnT = 0;
+    bullets = []; critters = []; enemyBullets = []; particles = []; pickups = [];
+    player.x = W/2; player.y = H-64; player.invulnT = 0; player.weapon = 'blaster'; player.weaponT = 0;
     spawnInterval = 70; spawnTimer = 0;
     bossActive = false; boss = null; bossWarnT = 0; lastBossLevel = 0;
   }
@@ -363,7 +381,7 @@
     if(score > highScore){ highScore = score; try{ localStorage.setItem('sfb_highscore', String(highScore)); }catch(e){} }
     overlay.classList.remove('hidden');
     critterRow.classList.remove('hidden');
-    menuText.innerHTML = 'ARROWS / A-D : MOVE&nbsp;&nbsp;&nbsp; SPACE : FIRE&nbsp;&nbsp;&nbsp; P : PAUSE&nbsp;&nbsp;&nbsp; M : MUTE<br>VEX RETURNS FIRE · DODGE MINES &amp; ASTEROIDS · A BOSS AWAITS EVERY 3RD SECTOR';
+    menuText.innerHTML = 'ARROWS / A-D : MOVE&nbsp;&nbsp;&nbsp; SPACE : FIRE&nbsp;&nbsp;&nbsp; P : PAUSE&nbsp;&nbsp;&nbsp; M : MUTE<br>GRAB WEAPON DROPS FROM FALLEN CRITTERS · A NEW BOSS RISES EVERY 3RD SECTOR';
     startPrompt.textContent = 'PRESS SPACE TO RELAUNCH';
     finalScoreWrap.classList.remove('hidden');
     finalScoreEl.textContent = 'FINAL SCORE  ' + score;
@@ -413,14 +431,88 @@
     }
   }
 
+  function fireBlaster(){
+    bullets.push({ x: player.x, y: player.y - 24, vx: 0, vy: -10, type: 'blaster' });
+    bullets.push({ x: player.x - 12, y: player.y - 14, vx: 0, vy: -10, type: 'blaster' });
+    bullets.push({ x: player.x + 12, y: player.y - 14, vx: 0, vy: -10, type: 'blaster' });
+  }
+  function firePulse(){
+    bullets.push({ x: player.x, y: player.y - 24, vx: 0, vy: -13, type: 'pulse' });
+  }
+  function fireSpread(){
+    for(const a of [-0.35, -0.17, 0, 0.17, 0.35]){
+      bullets.push({ x: player.x, y: player.y - 20, vx: Math.sin(a)*9, vy: -Math.cos(a)*9, type: 'spread' });
+    }
+  }
+  function fireHoming(){
+    bullets.push({ x: player.x, y: player.y - 24, vx: 0, vy: -6, type: 'homing' });
+  }
+  const WEAPON_FIRE = { blaster: fireBlaster, pulse: firePulse, spread: fireSpread, homing: fireHoming };
+
   function fire(){
     if(fireCooldown > 0) return;
-    bullets.push({ x: player.x, y: player.y - 24, vy: -10 });
-    bullets.push({ x: player.x - 12, y: player.y - 14, vy: -10 });
-    bullets.push({ x: player.x + 12, y: player.y - 14, vy: -10 });
-    fireCooldown = 9;
+    WEAPON_FIRE[player.weapon]();
+    fireCooldown = WEAPONS[player.weapon].cooldown;
     sfxShoot();
   }
+
+  function updateBossHex(b){
+    b.phase += 0.02;
+    b.x = W/2 + Math.sin(b.phase) * 140;
+    b.y = b.baseY + Math.sin(b.phase*2) * 10;
+    b.shootT--;
+    if(b.shootT <= 0){
+      const tier = Math.max(1, Math.round(level/3));
+      const count = Math.min(3 + tier, 7);
+      const spread = Math.PI/2.4;
+      for(let i=0;i<count;i++){
+        const t = count===1 ? 0 : (i/(count-1) - 0.5);
+        const angle = Math.PI/2 + t*spread;
+        enemyBullets.push({ x: b.x, y: b.y+34, vx: Math.cos(angle)*3.2, vy: Math.sin(angle)*3.2 });
+      }
+      sfxEnemyShoot();
+      b.shootT = Math.max(40, 76 - tier*5);
+    }
+  }
+
+  function updateBossSerpent(b){
+    b.phase += 0.035;
+    b.x = W/2 + Math.sin(b.phase) * 120;
+    b.y = b.baseY + Math.sin(b.phase*0.6) * 14;
+    b.shootT--;
+    if(b.shootT <= 0){
+      b.spiralAngle = (b.spiralAngle||0) + 0.5;
+      const speed = 2.6;
+      enemyBullets.push({ x: b.x, y: b.y, vx: Math.cos(b.spiralAngle)*speed, vy: Math.sin(b.spiralAngle)*speed });
+      if(Math.floor(frame/10) % 5 === 0){
+        const tailY = b.y + 6*20;
+        const dx = player.x - b.x, dy = player.y - tailY;
+        const d = Math.max(1, Math.hypot(dx, dy));
+        enemyBullets.push({ x: b.x, y: tailY, vx: dx/d*3.4, vy: dy/d*3.4 });
+      }
+      sfxEnemyShoot();
+      const tier = Math.max(1, Math.round(level/3));
+      b.shootT = Math.max(10, 22 - tier*2);
+    }
+  }
+
+  function updateBossCrystal(b){
+    b.phase += 0.015;
+    b.x = W/2 + Math.sin(b.phase) * 60;
+    b.y = b.baseY;
+    b.shootT--;
+    if(b.shootT <= 0){
+      const tier = Math.max(1, Math.round(level/3));
+      const shift = Math.sin(frame*0.03) * 30;
+      for(const off of [-56, 0, 56]){
+        enemyBullets.push({ x: b.x+off+shift, y: b.y+40, vx: 0, vy: 3.6 });
+      }
+      sfxEnemyShoot();
+      b.shootT = Math.max(26, 46 - tier*3);
+    }
+  }
+
+  const BOSS_UPDATERS = { hex: updateBossHex, serpent: updateBossSerpent, crystal: updateBossCrystal };
 
   function update(){
     frame++;
@@ -435,6 +527,10 @@
     if(state !== 'playing') return;
 
     if(player.invulnT > 0) player.invulnT--;
+    if(player.weaponT > 0){
+      player.weaponT--;
+      if(player.weaponT === 0) player.weapon = 'blaster';
+    }
 
     // background chiptune loop, tempo rises slightly with sector level, urgent during boss fights
     const musicStepFrames = Math.max(8, (bossActive ? 11 : 20) - level);
@@ -452,8 +548,30 @@
     if(firePressed) fire();
 
     // bullets
-    for(const b of bullets) b.y += b.vy;
-    bullets = bullets.filter(b => b.y > -20);
+    for(const b of bullets){
+      if(b.type === 'homing'){
+        let target = null, bestD = Infinity;
+        for(const f of critters){
+          if(f.dead) continue;
+          const d = (f.x-b.x)**2 + (f.y-b.y)**2;
+          if(d < bestD){ bestD = d; target = f; }
+        }
+        if(bossActive && boss){
+          const d = (boss.x-b.x)**2 + (boss.y-b.y)**2;
+          if(d < bestD){ bestD = d; target = boss; }
+        }
+        if(target){
+          const dx = target.x - b.x, dy = target.y - b.y;
+          const dist = Math.max(1, Math.hypot(dx, dy));
+          const speed = 7;
+          b.vx += (dx/dist*speed - b.vx) * 0.12;
+          b.vy += (dy/dist*speed - b.vy) * 0.12;
+        }
+      }
+      b.x += b.vx || 0;
+      b.y += b.vy;
+    }
+    bullets = bullets.filter(b => b.y > -20 && b.y < H+20 && b.x > -20 && b.x < W+20);
 
     // boss warning countdown, then spawn
     if(bossWarnT > 0){
@@ -492,22 +610,7 @@
 
     // boss behavior
     if(bossActive && boss){
-      boss.phase += 0.02;
-      boss.x = W/2 + Math.sin(boss.phase) * 140;
-      boss.y = boss.baseY + Math.sin(boss.phase*2) * 10;
-      boss.shootT--;
-      if(boss.shootT <= 0){
-        const tier = Math.max(1, Math.round(level/3));
-        const count = Math.min(3 + tier, 7);
-        const spread = Math.PI/2.4;
-        for(let i=0;i<count;i++){
-          const t = count===1 ? 0 : (i/(count-1) - 0.5);
-          const angle = Math.PI/2 + t*spread;
-          enemyBullets.push({ x: boss.x, y: boss.y+34, vx: Math.cos(angle)*3.2, vy: Math.sin(angle)*3.2 });
-        }
-        sfxEnemyShoot();
-        boss.shootT = Math.max(40, 76 - tier*5);
-      }
+      BOSS_UPDATERS[boss.type](boss);
     }
 
     // enemy bullets
@@ -532,7 +635,7 @@
         const dx = b.x - f.x, dy = b.y - f.y;
         if(dx*dx + dy*dy < (f.r+4)*(f.r+4)){
           b.dead = true;
-          f.hpLeft--;
+          f.hpLeft -= WEAPONS[b.type]?.damage || 1;
           if(f.hpLeft <= 0){
             f.dead = true;
             if(f.bomb){
@@ -549,6 +652,9 @@
               sfxPop(f.score);
               score += f.score;
               spawnParticles(f.x, f.y, f.color, 14);
+              if(Math.random() < 0.10){
+                pickups.push({ x: f.x, y: f.y, vy: 1.4, weapon: PICKUP_WEAPONS[Math.floor(Math.random()*PICKUP_WEAPONS.length)], phase: Math.random()*Math.PI*2 });
+              }
             }
           } else {
             spawnParticles(b.x, b.y, '#fff', 4);
@@ -562,14 +668,15 @@
       for(const b of bullets){
         if(b.dead) continue;
         const dx = b.x - boss.x, dy = b.y - boss.y;
-        if(dx*dx + dy*dy < 44*44){
+        if(dx*dx + dy*dy < boss.hitR*boss.hitR){
           b.dead = true;
-          boss.hp--;
+          boss.hp -= WEAPONS[b.type]?.damage || 1;
           spawnParticles(b.x, b.y, '#fff', 3);
           if(boss.hp <= 0){
             bossActive = false;
             score += 250 + level*15;
             spawnParticles(boss.x, boss.y, '#ffcf5c', 46);
+            pickups.push({ x: boss.x, y: boss.y, vy: 1.2, weapon: PICKUP_WEAPONS[Math.floor(Math.random()*PICKUP_WEAPONS.length)], phase: 0 });
             shakeT = 26;
             sfxBossDefeat();
             boss = null;
@@ -603,8 +710,24 @@
     // boss body colliding with player
     if(bossActive && boss){
       const dx = boss.x - player.x, dy = boss.y - player.y;
-      if(dx*dx + dy*dy < (44+15)*(44+15)) loseLife(1);
+      if(dx*dx + dy*dy < (boss.hitR+15)*(boss.hitR+15)) loseLife(1);
     }
+
+    // weapon pickups
+    for(const p of pickups){ p.y += p.vy; p.phase += 0.08; }
+    pickups = pickups.filter(p => p.y - 20 < H);
+    for(const p of pickups){
+      if(p.dead) continue;
+      const dx = p.x - player.x, dy = p.y - player.y;
+      if(dx*dx + dy*dy < (18+14)*(18+14)){
+        p.dead = true;
+        player.weapon = p.weapon;
+        player.weaponT = WEAPON_DURATION;
+        spawnParticles(p.x, p.y, WEAPONS[p.weapon].color, 16);
+        sfxPickup();
+      }
+    }
+    pickups = pickups.filter(p => !p.dead);
 
     // particles
     for(const p of particles){
@@ -633,11 +756,17 @@
 
   function spawnBoss(){
     const tier = Math.max(1, level/3);
+    const type = BOSS_TYPE_KEYS[(Math.round(level/3) - 1) % BOSS_TYPE_KEYS.length];
     boss = {
+      type,
       x: W/2, y: 120, baseY: 120,
       hp: 40 + tier*22, maxHp: 40 + tier*22,
-      shootT: 60, phase: 0,
+      shootT: 60, phase: 0, spiralAngle: 0,
+      hitR: type === 'crystal' ? 50 : (type === 'serpent' ? 38 : 44),
     };
+    if(type === 'serpent') boss.baseY = 100;
+    if(type === 'crystal') boss.baseY = 130;
+    boss.y = boss.baseY;
     bossActive = true;
     sfxBossAppear();
   }
@@ -658,7 +787,8 @@
 
   function updateHud(){
     scoreLine.textContent = 'SCORE ' + score;
-    levelLine.textContent = 'SECTOR ' + level + (bossActive ? ' · BOSS' : '');
+    const weaponTag = player.weapon !== 'blaster' ? ' ' + WEAPONS[player.weapon].label : '';
+    levelLine.textContent = 'SECTOR ' + level + (bossActive ? ' BOSS' : '') + weaponTag;
     livesLine.textContent = 'SHIPS ' + '▲'.repeat(Math.max(0,lives)) + ' ×' + Math.max(0,lives);
   }
 
@@ -705,7 +835,7 @@
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#3df5ff';
+    ctx.fillStyle = WEAPONS[player.weapon].color;
     ctx.beginPath();
     ctx.arc(0,-4,3.4,0,Math.PI*2);
     ctx.fill();
@@ -715,11 +845,25 @@
 
   function drawBullets(){
     ctx.save();
-    ctx.shadowColor = '#3df5ff';
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = '#e8ffff';
     for(const b of bullets){
-      ctx.fillRect(b.x-1.5, b.y-9, 3, 14);
+      const color = WEAPONS[b.type]?.color || '#e8ffff';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = color;
+      if(b.type === 'homing'){
+        const ang = Math.atan2(b.vy, b.vx || 0.001);
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(ang + Math.PI/2);
+        ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(4,6); ctx.lineTo(-4,6); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      } else if(b.type === 'spread'){
+        ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill();
+      } else if(b.type === 'pulse'){
+        ctx.fillRect(b.x-2, b.y-11, 4, 18);
+      } else {
+        ctx.fillRect(b.x-1.5, b.y-9, 3, 14);
+      }
     }
     ctx.restore();
   }
@@ -907,8 +1051,7 @@
     ctx.restore();
   }
 
-  function drawBoss(){
-    const b = boss;
+  function drawBossHex(b){
     const hpFrac = b.hp / b.maxHp;
     const stageColor = hpFrac > 0.66 ? '#3dff8a' : hpFrac > 0.33 ? '#ffe93d' : '#ff4d4d';
     const charge = Math.max(0, 1 - b.shootT/18);
@@ -985,6 +1128,64 @@
     ctx.restore();
   }
 
+  function drawBossSerpent(b){
+    const hpFrac = b.hp / b.maxHp;
+    const stageColor = hpFrac > 0.66 ? '#3dff8a' : hpFrac > 0.33 ? '#ffe93d' : '#ff4d4d';
+    const charge = Math.max(0, 1 - b.shootT/10);
+    ctx.save();
+    ctx.shadowColor = stageColor; ctx.shadowBlur = 18;
+    for(let i=6;i>=1;i--){
+      const segX = b.x + Math.sin(b.phase*2 - i*0.6) * 26;
+      const segY = b.y + i*20;
+      const segR = Math.max(6, 30 - i*2.6);
+      ctx.globalAlpha = 0.88;
+      ctx.fillStyle = i%2===0 ? stageColor : 'rgba(255,255,255,0.18)';
+      ctx.beginPath(); ctx.arc(segX, segY, segR, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = stageColor;
+    ctx.beginPath(); ctx.ellipse(b.x, b.y, 34, 28, 0, 0, Math.PI*2); ctx.fill();
+    const glow = `rgba(255,${Math.round(120+charge*120)},${Math.round(70+charge*120)},0.95)`;
+    ctx.fillStyle = glow; ctx.shadowColor = glow; ctx.shadowBlur = 8+charge*10;
+    ctx.beginPath(); ctx.moveTo(b.x-20,b.y-8); ctx.lineTo(b.x-6,b.y-4); ctx.lineTo(b.x-6,b.y+3); ctx.lineTo(b.x-20,b.y); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(b.x+20,b.y-8); ctx.lineTo(b.x+6,b.y-4); ctx.lineTo(b.x+6,b.y+3); ctx.lineTo(b.x+20,b.y); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBossCrystal(b){
+    const hpFrac = b.hp / b.maxHp;
+    const stageColor = hpFrac > 0.66 ? '#3dff8a' : hpFrac > 0.33 ? '#ffe93d' : '#ff4d4d';
+    const charge = Math.max(0, 1 - b.shootT/14);
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.shadowColor = stageColor; ctx.shadowBlur = 22;
+    ctx.fillStyle = stageColor;
+    ctx.beginPath();
+    ctx.moveTo(0,-58); ctx.lineTo(38,0); ctx.lineTo(0,58); ctx.lineTo(-38,0);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(4,3,10,0.55)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0,-58); ctx.lineTo(0,58); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-38,0); ctx.lineTo(38,0); ctx.stroke();
+    for(let i=0;i<4;i++){
+      const a = (Math.PI/2)*i + frame*0.03;
+      const px = Math.cos(a)*70, py = Math.sin(a)*70*0.7;
+      ctx.save();
+      ctx.translate(px,py); ctx.rotate(a);
+      ctx.fillStyle = stageColor;
+      ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(7,8); ctx.lineTo(-7,8); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    const glow = `rgba(255,${Math.round(120+charge*120)},${Math.round(70+charge*120)},0.95)`;
+    ctx.fillStyle = glow; ctx.shadowColor = glow; ctx.shadowBlur = 10+charge*14;
+    ctx.beginPath(); ctx.arc(0,0, 10+charge*3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#04030a';
+    ctx.beginPath(); ctx.arc(0,0, 4, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  const BOSS_DRAWERS = { hex: drawBossHex, serpent: drawBossSerpent, crystal: drawBossCrystal };
+  function drawBoss(){ (BOSS_DRAWERS[boss.type] || drawBossHex)(boss); }
+
   function drawBossBar(){
     const barX = 70, barY = 42, barW = W-140, barH = 10;
     ctx.save();
@@ -1000,7 +1201,33 @@
     ctx.strokeRect(barX, barY, barW, barH);
     ctx.font = '10px "Courier New", monospace';
     ctx.fillStyle = '#e8ffff'; ctx.textAlign = 'center';
-    ctx.fillText('BOSS', W/2, barY-4);
+    ctx.fillText(BOSS_LABELS[boss.type] || 'BOSS', W/2, barY-4);
+    ctx.restore();
+  }
+
+  function drawPickups(){
+    ctx.save();
+    for(const p of pickups){
+      const color = WEAPONS[p.weapon].color;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(Math.sin(p.phase)*0.3);
+      ctx.shadowColor = color; ctx.shadowBlur = 14;
+      ctx.strokeStyle = color; ctx.lineWidth = 2;
+      ctx.fillStyle = 'rgba(4,3,10,0.75)';
+      ctx.beginPath();
+      for(let i=0;i<6;i++){
+        const a = Math.PI/3*i;
+        const px = Math.cos(a)*13, py = Math.sin(a)*13;
+        if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.font = 'bold 13px "Courier New", monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(WEAPONS[p.weapon].label[0], 0, 1);
+      ctx.restore();
+    }
     ctx.restore();
   }
 
@@ -1037,6 +1264,7 @@
     drawStars();
     if(state === 'playing' || state === 'paused'){
       drawCritters();
+      drawPickups();
       if(bossActive && boss) drawBoss();
       drawEnemyBullets();
       drawBullets();
