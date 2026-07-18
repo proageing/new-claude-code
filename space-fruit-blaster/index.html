@@ -95,6 +95,14 @@
   }
   #touch .dpad{ display:flex; gap:10px; }
   @media (pointer:coarse){ #touch{ display:flex; } }
+
+  #soundBtn{
+    position:absolute; top:34px; right:10px; z-index:5;
+    pointer-events:auto; background:rgba(61,245,255,0.08); border:1px solid rgba(61,245,255,0.45);
+    color:var(--neon-cyan); font-size:15px; line-height:1; border-radius:6px; padding:5px 8px;
+    cursor:pointer; font-family:inherit;
+  }
+  #soundBtn:focus-visible{ outline:2px solid var(--neon-yellow); outline-offset:2px; }
 </style>
 </head>
 <body>
@@ -114,7 +122,7 @@
     <div class="sub">A RETRO ARCADE ORCHARD DEFENSE</div>
     <div id="fruitrow" class="fruitrow">🍎 🍊 🍌 🍇 🍉</div>
     <div id="menuText" class="legend">
-      ARROWS / A-D : MOVE&nbsp;&nbsp;&nbsp; SPACE : FIRE&nbsp;&nbsp;&nbsp; P : PAUSE<br>
+      ARROWS / A-D : MOVE&nbsp;&nbsp;&nbsp; SPACE : FIRE&nbsp;&nbsp;&nbsp; P : PAUSE&nbsp;&nbsp;&nbsp; M : MUTE<br>
       SHOOT THE FLYING FRUIT · AVOID SPACE BOMBS 💣 · DON'T LET FRUIT PASS
     </div>
     <div id="startPrompt" class="blink glow-yellow">PRESS SPACE TO LAUNCH</div>
@@ -123,6 +131,8 @@
       <div id="highScore" class="sub glow-yellow"></div>
     </div>
   </div>
+
+  <button id="soundBtn" aria-label="Toggle sound">🔊</button>
 
   <div id="touch">
     <div class="dpad">
@@ -150,6 +160,7 @@
   const levelLine = document.getElementById('levelLine');
   const livesLine = document.getElementById('livesLine');
   const flashEl = document.getElementById('flash');
+  const soundBtn = document.getElementById('soundBtn');
 
   const FRUITS = [
     { key:'apple',      emoji:'🍎', r:16, score:10, speed:1.0, wobble:0.6, hp:1, color:'#ff4d4d' },
@@ -161,25 +172,81 @@
   ];
   const BOMB = { key:'bomb', emoji:'💣', r:17, speed:1.3, wobble:0.5, hp:1, color:'#ff2f2f' };
 
-  let audioCtx = null;
-  function ensureAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
-  function beep({freq=440, dur=0.08, type='square', gain=0.06, slideTo=null}){
+  let audioCtx = null, masterGain = null, muted = false;
+  function ensureAudio(){
+    if(!audioCtx){
+      try{
+        audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = muted ? 0 : 1;
+        masterGain.connect(audioCtx.destination);
+      }catch(e){}
+    }
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function toggleMute(){
+    muted = !muted;
+    if(masterGain) masterGain.gain.setTargetAtTime(muted?0:1, audioCtx.currentTime, 0.01);
+    soundBtn.textContent = muted ? '🔇' : '🔊';
+  }
+  function beep({freq=440, dur=0.08, type='square', gain=0.06, slideTo=null, delay=0}){
     if(!audioCtx) return;
-    const t0 = audioCtx.currentTime;
+    const t0 = audioCtx.currentTime + delay;
     const osc = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     osc.type = type; osc.frequency.setValueAtTime(freq, t0);
     if(slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(20,slideTo), t0+dur);
     g.gain.setValueAtTime(gain, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
-    osc.connect(g); g.connect(audioCtx.destination);
+    osc.connect(g); g.connect(masterGain);
     osc.start(t0); osc.stop(t0+dur+0.02);
   }
-  function sfxShoot(){ beep({freq:900, slideTo:300, dur:0.09, type:'square', gain:0.05}); }
-  function sfxPop(){ beep({freq:520, slideTo:80, dur:0.12, type:'sawtooth', gain:0.07}); }
-  function sfxBomb(){ beep({freq:180, slideTo:40, dur:0.35, type:'square', gain:0.1}); }
-  function sfxHit(){ beep({freq:150, slideTo:60, dur:0.25, type:'sawtooth', gain:0.09}); }
-  function sfxLevel(){ beep({freq:660, dur:0.09, type:'square', gain:0.06}); setTimeout(()=>beep({freq:880,dur:0.12,type:'square',gain:0.06}),90); }
+  function noiseBurst({dur=0.2, freq=1200, gain=0.12, filterType='lowpass'}){
+    if(!audioCtx) return;
+    const bufferSize = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufferSize);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = filterType; filter.frequency.value = freq;
+    const g = audioCtx.createGain();
+    const t0 = audioCtx.currentTime;
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    src.connect(filter); filter.connect(g); g.connect(masterGain);
+    src.start(t0);
+  }
+
+  function sfxShoot(){ beep({freq:1000, slideTo:340, dur:0.08, type:'square', gain:0.045}); }
+  function sfxPop(score){
+    const base = 420 + Math.min(score, 100) * 2.4;
+    beep({freq:base, slideTo:base*0.32, dur:0.11, type:'sawtooth', gain:0.065});
+  }
+  function sfxBomb(){
+    noiseBurst({dur:0.32, freq:900, gain:0.18, filterType:'lowpass'});
+    beep({freq:140, slideTo:30, dur:0.3, type:'square', gain:0.08});
+  }
+  function sfxHit(){
+    beep({freq:220, slideTo:70, dur:0.22, type:'sawtooth', gain:0.09});
+    beep({freq:180, slideTo:50, dur:0.28, type:'square', gain:0.07, delay:0.05});
+  }
+  function sfxLevel(){
+    [0,90,180].forEach((t,i)=> setTimeout(()=>beep({freq:520+i*170, dur:0.1, type:'square', gain:0.06}), t));
+  }
+  function sfxSelect(){ beep({freq:700, slideTo:920, dur:0.06, type:'square', gain:0.05}); }
+  function sfxGameOver(){
+    [660,560,460,320].forEach((f,i)=> setTimeout(()=>beep({freq:f, dur:0.24, type:'triangle', gain:0.08}), i*160));
+  }
+
+  const bassline = [55, 55, 82.41, 65.41, 55, 55, 73.42, 61.74];
+  let musicStep = 0;
+  function playMusicStep(){
+    beep({freq:bassline[musicStep % bassline.length], dur:0.16, type:'triangle', gain:0.05});
+    if(musicStep % 2 === 1) noiseBurst({dur:0.04, freq:5000, gain:0.02, filterType:'highpass'});
+    musicStep++;
+  }
 
   const keys = {};
   window.addEventListener('keydown', e => {
@@ -190,7 +257,8 @@
       if(state === 'menu' || state === 'gameover') startGame();
       else if(state === 'playing') firePressed = true;
     }
-    if(e.code === 'KeyP' && state === 'playing') togglePause();
+    if(e.code === 'KeyP' && (state === 'playing' || state === 'paused')) togglePause();
+    if(e.code === 'KeyM') toggleMute();
   });
   window.addEventListener('keyup', e => { keys[e.code] = false; if(e.code==='Space') firePressed = false; });
 
@@ -207,6 +275,9 @@
   bind('rightBtn', ()=>touchRight=true, ()=>touchRight=false);
   bind('fireBtn', ()=>{touchFire=true; firePressed=true;}, ()=>{touchFire=false; firePressed=false;});
   overlay.addEventListener('click', ()=>{ ensureAudio(); if(state==='menu'||state==='gameover') startGame(); });
+
+  soundBtn.addEventListener('click', (e)=>{ e.stopPropagation(); ensureAudio(); toggleMute(); });
+  soundBtn.addEventListener('touchstart', (e)=>{ e.stopPropagation(); e.preventDefault(); ensureAudio(); toggleMute(); }, {passive:false});
 
   let state = 'menu'; // menu | playing | paused | gameover
   let score = 0, lives = 3, level = 1, frame = 0;
@@ -235,12 +306,14 @@
   }
 
   function startGame(){
+    sfxSelect();
     resetGame();
     state = 'playing';
     overlay.classList.add('hidden');
   }
 
   function togglePause(){
+    sfxSelect();
     state = state === 'playing' ? 'paused' : 'playing';
     if(state === 'paused'){
       overlay.classList.remove('hidden');
@@ -255,11 +328,11 @@
 
   function endGame(){
     state = 'gameover';
-    sfxHit();
+    sfxGameOver();
     if(score > highScore){ highScore = score; try{ localStorage.setItem('sfb_highscore', String(highScore)); }catch(e){} }
     overlay.classList.remove('hidden');
     fruitRow.classList.remove('hidden');
-    menuText.innerHTML = 'ARROWS / A-D : MOVE&nbsp;&nbsp;&nbsp; SPACE : FIRE&nbsp;&nbsp;&nbsp; P : PAUSE<br>SHOOT THE FLYING FRUIT · AVOID SPACE BOMBS 💣 · DON\'T LET FRUIT PASS';
+    menuText.innerHTML = 'ARROWS / A-D : MOVE&nbsp;&nbsp;&nbsp; SPACE : FIRE&nbsp;&nbsp;&nbsp; P : PAUSE&nbsp;&nbsp;&nbsp; M : MUTE<br>SHOOT THE FLYING FRUIT · AVOID SPACE BOMBS 💣 · DON\'T LET FRUIT PASS';
     startPrompt.textContent = 'PRESS SPACE TO RELAUNCH';
     finalScoreWrap.classList.remove('hidden');
     finalScoreEl.textContent = 'FINAL SCORE  ' + score;
@@ -318,6 +391,10 @@
 
     if(state !== 'playing') return;
 
+    // background chiptune loop, tempo rises slightly with sector level
+    const musicStepFrames = Math.max(9, 16 - level);
+    if(!muted && frame % musicStepFrames === 0) playMusicStep();
+
     // movement
     const left = keys['ArrowLeft'] || keys['KeyA'] || touchLeft;
     const right = keys['ArrowRight'] || keys['KeyD'] || touchRight;
@@ -366,7 +443,7 @@
               flashRed();
               spawnParticles(f.x, f.y, '#ff2f2f', 22);
             } else {
-              sfxPop();
+              sfxPop(f.score);
               score += f.score;
               spawnParticles(f.x, f.y, f.color, 14);
             }
