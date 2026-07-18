@@ -112,7 +112,7 @@
   <div id="hud">
     <span id="scoreLine" class="glow-cyan">SCORE 0</span>
     <span id="levelLine" class="glow-yellow">SECTOR 1</span>
-    <span id="livesLine" class="glow-magenta">SHIPS ▲▲▲</span>
+    <span id="livesLine" class="glow-magenta">SHIPS ▲▲▲ ×3</span>
   </div>
   <div id="crt"></div>
   <div id="vignette"></div>
@@ -659,7 +659,7 @@
   function updateHud(){
     scoreLine.textContent = 'SCORE ' + score;
     levelLine.textContent = 'SECTOR ' + level + (bossActive ? ' · BOSS' : '');
-    livesLine.textContent = 'SHIPS ' + '▲'.repeat(Math.max(0,lives));
+    livesLine.textContent = 'SHIPS ' + '▲'.repeat(Math.max(0,lives)) + ' ×' + Math.max(0,lives);
   }
 
   // ---- drawing ----
