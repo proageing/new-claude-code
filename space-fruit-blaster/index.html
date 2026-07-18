@@ -263,13 +263,16 @@
     [520,660,780,940].forEach((f,i)=> setTimeout(()=>beep({freq:f, dur:0.2, type:'square', gain:0.08}), i*120));
   }
 
-  const bassline = [55, 55, 82.41, 65.41, 55, 55, 73.42, 61.74];
-  const bossBassline = [98, 98, 110, 98, 123.47, 110, 98, 73.42];
+  // Pachelbel's Canon in D ground bass (public domain): D - A - B - F# - G - D - G - A
+  const bassline = [73.42, 55.00, 61.74, 46.25, 49.00, 73.42, 49.00, 55.00];
+  const bossBassline = [146.83, 110.00, 123.47, 92.50, 98.00, 146.83, 98.00, 110.00];
+  const arpLine = [220.00, 329.63, 369.99, 277.18, 293.66, 220.00, 293.66, 329.63];
   let musicStep = 0;
   function playMusicStep(){
     const line = bossActive ? bossBassline : bassline;
-    beep({freq:line[musicStep % line.length], dur:0.15, type: bossActive?'sawtooth':'triangle', gain:0.05});
-    if(musicStep % 2 === 1) noiseBurst({dur:0.04, freq:5000, gain:0.02, filterType:'highpass'});
+    beep({freq:line[musicStep % line.length], dur:0.16, type: bossActive?'sawtooth':'triangle', gain:0.05});
+    beep({freq:arpLine[musicStep % arpLine.length], dur:0.14, type:'sine', gain:0.032, delay:0.055});
+    if(musicStep % 2 === 1) noiseBurst({dur:0.04, freq:5000, gain:0.015, filterType:'highpass'});
     musicStep++;
   }
 
@@ -434,7 +437,7 @@
     if(player.invulnT > 0) player.invulnT--;
 
     // background chiptune loop, tempo rises slightly with sector level, urgent during boss fights
-    const musicStepFrames = Math.max(7, (bossActive ? 11 : 16) - level);
+    const musicStepFrames = Math.max(8, (bossActive ? 11 : 20) - level);
     if(!muted && frame % musicStepFrames === 0) playMusicStep();
 
     // movement
