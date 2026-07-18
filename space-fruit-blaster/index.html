@@ -918,12 +918,31 @@
     ctx.shadowBlur = 22;
     ctx.fillStyle = stageColor;
     ctx.beginPath();
+    const hexPts = [];
     for(let i=0;i<6;i++){
       const a = Math.PI/3*i - Math.PI/2 + Math.sin(frame*0.02)*0.05;
       const px = Math.cos(a)*50, py = Math.sin(a)*50;
+      hexPts.push([a,px,py]);
       if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
     }
     ctx.closePath(); ctx.fill();
+
+    // crown of spikes on the three upward-facing vertices
+    ctx.fillStyle = stageColor;
+    for(const [a,px,py] of hexPts){
+      if(Math.sin(a) < -0.15){
+        const tipX = Math.cos(a)*74, tipY = Math.sin(a)*74;
+        const perp = a + Math.PI/2;
+        ctx.beginPath();
+        ctx.moveTo(px + Math.cos(perp)*7, py + Math.sin(perp)*7);
+        ctx.lineTo(tipX, tipY);
+        ctx.lineTo(px - Math.cos(perp)*7, py - Math.sin(perp)*7);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // orbiting eye pods
     for(let i=0;i<5;i++){
       const a = (Math.PI*2/5)*i + frame*0.015;
       const px = Math.cos(a)*72, py = Math.sin(a)*72*0.6;
@@ -937,8 +956,32 @@
       ctx.fillStyle = '#04030a';
       ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2); ctx.fill();
     }
-    ctx.fillStyle = '#04030a';
-    ctx.fillRect(-24, -8, 48, 16);
+
+    // core face: angry slit eyes + jagged vent mouth, glows brighter as it charges to fire
+    const glow = `rgba(255,${Math.round(120+charge*120)},${Math.round(70+charge*120)},0.95)`;
+    ctx.fillStyle = glow;
+    ctx.shadowColor = glow; ctx.shadowBlur = 8 + charge*12;
+    ctx.beginPath();
+    ctx.moveTo(-23,-7); ctx.lineTo(-5,-3); ctx.lineTo(-5,3); ctx.lineTo(-23,1);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(23,-7); ctx.lineTo(5,-3); ctx.lineTo(5,3); ctx.lineTo(23,1);
+    ctx.closePath(); ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = charge > 0.4 ? glow : '#04030a';
+    const mw = 26, teeth = 6, gap = charge*8;
+    ctx.beginPath();
+    ctx.moveTo(-mw, 12);
+    for(let i=0;i<=teeth;i++){
+      const x = -mw + (mw*2/teeth)*i;
+      const y = 12 + (i%2===0 ? 0 : 5+gap);
+      ctx.lineTo(x,y);
+    }
+    ctx.lineTo(mw, 18+gap);
+    ctx.lineTo(-mw, 18+gap);
+    ctx.closePath(); ctx.fill();
+
     ctx.restore();
   }
 
