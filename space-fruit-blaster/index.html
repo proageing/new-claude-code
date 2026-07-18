@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>SPACE FRUIT BLASTER</title>
+<title>COSMIC CRITTER BLASTER</title>
 <style>
   :root{
     --neon-cyan:#3df5ff;
@@ -68,7 +68,8 @@
     color:var(--neon-magenta); text-shadow:0 0 8px var(--neon-magenta), 0 0 26px rgba(255,47,208,0.7);
   }
   #overlay .sub{ font-size:clamp(10px,2.1vw,15px); letter-spacing:2px; color:var(--neon-cyan); opacity:0.9; }
-  #overlay .fruitrow{ font-size:clamp(20px,4vw,30px); letter-spacing:10px; margin:6px 0; }
+  #overlay .critterrow{ font-size:clamp(11px,2.3vw,14px); letter-spacing:3px; margin:8px 0; display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
+  #overlay .critterrow span{ padding:3px 8px; border:1px solid currentColor; border-radius:3px; opacity:0.9; }
   #overlay .blink{ animation:blink 1s steps(1) infinite; margin-top:10px; font-size:clamp(11px,2.4vw,16px); letter-spacing:2px; }
   #overlay .legend{ font-size:clamp(9px,1.8vw,12px); line-height:1.9; color:#9fe8ff; opacity:0.85; letter-spacing:1px; }
   @keyframes blink{ 50%{ opacity:0; } }
@@ -118,12 +119,18 @@
   <div id="flash"></div>
 
   <div id="overlay">
-    <h1>SPACE FRUIT BLASTER</h1>
-    <div class="sub">A RETRO ARCADE ORCHARD DEFENSE</div>
-    <div id="fruitrow" class="fruitrow">🍎 🍊 🍌 🍇 🍉</div>
+    <h1>COSMIC CRITTER BLASTER</h1>
+    <div class="sub">A RETRO ARCADE VOID DEFENSE</div>
+    <div id="critterRow" class="critterrow">
+      <span style="color:#5be8c8;">BLIP</span>
+      <span style="color:#ffa23d;">ZOG</span>
+      <span style="color:#b06bff;">SQUIG</span>
+      <span style="color:#3dff8a;">KRIX</span>
+      <span style="color:#ff5fb0;">BLORP</span>
+    </div>
     <div id="menuText" class="legend">
       ARROWS / A-D : MOVE&nbsp;&nbsp;&nbsp; SPACE : FIRE&nbsp;&nbsp;&nbsp; P : PAUSE&nbsp;&nbsp;&nbsp; M : MUTE<br>
-      SHOOT THE FLYING FRUIT · AVOID SPACE BOMBS 💣 · DON'T LET FRUIT PASS
+      BLAST THE SPACE CRITTERS · DODGE HOSTILE MINES · DON'T LET THEM BREACH
     </div>
     <div id="startPrompt" class="blink glow-yellow">PRESS SPACE TO LAUNCH</div>
     <div id="finalScoreWrap" class="hidden">
@@ -151,7 +158,7 @@
 
   const overlay = document.getElementById('overlay');
   const menuText = document.getElementById('menuText');
-  const fruitRow = document.getElementById('fruitrow');
+  const critterRow = document.getElementById('critterRow');
   const startPrompt = document.getElementById('startPrompt');
   const finalScoreWrap = document.getElementById('finalScoreWrap');
   const finalScoreEl = document.getElementById('finalScore');
@@ -162,15 +169,15 @@
   const flashEl = document.getElementById('flash');
   const soundBtn = document.getElementById('soundBtn');
 
-  const FRUITS = [
-    { key:'apple',      emoji:'🍎', r:16, score:10, speed:1.0, wobble:0.6, hp:1, color:'#ff4d4d' },
-    { key:'orange',     emoji:'🍊', r:17, score:15, speed:1.15, wobble:0.8, hp:1, color:'#ffa23d' },
-    { key:'banana',     emoji:'🍌', r:16, score:20, speed:1.5, wobble:1.6, hp:1, color:'#ffe93d' },
-    { key:'grape',      emoji:'🍇', r:14, score:25, speed:1.7, wobble:1.3, hp:1, color:'#b06bff' },
-    { key:'watermelon', emoji:'🍉', r:24, score:35, speed:0.75, wobble:0.35, hp:2, color:'#3dff8a' },
-    { key:'star',       emoji:'⭐', r:15, score:100, speed:1.9, wobble:2.2, hp:1, color:'#ffe93d', rare:true },
+  const CRITTERS = [
+    { key:'blip',  r:15, score:10, speed:1.0,  wobble:0.6, hp:1, color:'#5be8c8' },
+    { key:'zog',   r:16, score:15, speed:1.15, wobble:0.8, hp:1, color:'#ffa23d' },
+    { key:'squig', r:15, score:20, speed:1.6,  wobble:1.7, hp:1, color:'#b06bff' },
+    { key:'blorp', r:17, score:25, speed:1.4,  wobble:1.9, hp:1, color:'#ff5fb0' },
+    { key:'krix',  r:22, score:35, speed:0.75, wobble:0.3, hp:2, color:'#3dff8a' },
+    { key:'nova',  r:16, score:100, speed:1.9, wobble:2.2, hp:1, color:'#ffe93d', rare:true },
   ];
-  const BOMB = { key:'bomb', emoji:'💣', r:17, speed:1.3, wobble:0.5, hp:1, color:'#ff2f2f' };
+  const MINE = { key:'mine', r:17, speed:1.3, wobble:0.5, hp:1, color:'#ff2f2f' };
 
   let audioCtx = null, masterGain = null, muted = false;
   function ensureAudio(){
@@ -292,7 +299,7 @@
 
   const player = { x: W/2, y: H-64, w: 34, h: 30, speed: 5.4, thrust: 0 };
   let bullets = [];
-  let fruits = [];
+  let critters = [];
   let particles = [];
 
   let highScore = 0;
@@ -300,7 +307,7 @@
 
   function resetGame(){
     score = 0; lives = 3; level = 1; frame = 0;
-    bullets = []; fruits = []; particles = [];
+    bullets = []; critters = []; particles = [];
     player.x = W/2; player.y = H-64;
     spawnInterval = 70; spawnTimer = 0;
   }
@@ -317,7 +324,7 @@
     state = state === 'playing' ? 'paused' : 'playing';
     if(state === 'paused'){
       overlay.classList.remove('hidden');
-      fruitRow.classList.add('hidden');
+      critterRow.classList.add('hidden');
       menuText.textContent = 'PAUSED';
       startPrompt.textContent = 'PRESS P TO RESUME';
       finalScoreWrap.classList.add('hidden');
@@ -331,25 +338,25 @@
     sfxGameOver();
     if(score > highScore){ highScore = score; try{ localStorage.setItem('sfb_highscore', String(highScore)); }catch(e){} }
     overlay.classList.remove('hidden');
-    fruitRow.classList.remove('hidden');
-    menuText.innerHTML = 'ARROWS / A-D : MOVE&nbsp;&nbsp;&nbsp; SPACE : FIRE&nbsp;&nbsp;&nbsp; P : PAUSE&nbsp;&nbsp;&nbsp; M : MUTE<br>SHOOT THE FLYING FRUIT · AVOID SPACE BOMBS 💣 · DON\'T LET FRUIT PASS';
+    critterRow.classList.remove('hidden');
+    menuText.innerHTML = 'ARROWS / A-D : MOVE&nbsp;&nbsp;&nbsp; SPACE : FIRE&nbsp;&nbsp;&nbsp; P : PAUSE&nbsp;&nbsp;&nbsp; M : MUTE<br>BLAST THE SPACE CRITTERS · DODGE HOSTILE MINES · DON\'T LET THEM BREACH';
     startPrompt.textContent = 'PRESS SPACE TO RELAUNCH';
     finalScoreWrap.classList.remove('hidden');
     finalScoreEl.textContent = 'FINAL SCORE  ' + score;
     highScoreEl.textContent = 'HIGH SCORE   ' + highScore;
   }
 
-  function spawnFruit(){
+  function spawnCritter(){
     const isBomb = Math.random() < Math.min(0.10 + level*0.01, 0.22);
     let base;
-    if(isBomb){ base = BOMB; }
+    if(isBomb){ base = MINE; }
     else {
       const roll = Math.random();
-      const pool = roll < 0.03 ? FRUITS.filter(f=>f.rare) : FRUITS.filter(f=>!f.rare);
+      const pool = roll < 0.03 ? CRITTERS.filter(f=>f.rare) : CRITTERS.filter(f=>!f.rare);
       base = pool[Math.floor(Math.random()*pool.length)];
     }
     const x = base.r + Math.random()*(W - base.r*2);
-    fruits.push({
+    critters.push({
       ...base,
       x, y: -30,
       vy: (base.speed + level*0.12) * (1.6 + Math.random()*0.5),
@@ -414,19 +421,19 @@
     spawnTimer++;
     if(spawnTimer >= spawnInterval){
       spawnTimer = 0;
-      spawnFruit();
+      spawnCritter();
     }
 
-    // fruits
-    for(const f of fruits){
+    // critters
+    for(const f of critters){
       f.y += f.vy;
       f.phase += 0.05;
       f.x += Math.sin(f.phase) * f.wobble;
       f.x = Math.max(f.r, Math.min(W-f.r, f.x));
     }
 
-    // bullet-fruit collisions
-    for(const f of fruits){
+    // bullet-critter collisions
+    for(const f of critters){
       if(f.dead) continue;
       for(const b of bullets){
         if(b.dead) continue;
@@ -455,8 +462,8 @@
     }
     bullets = bullets.filter(b => !b.dead);
 
-    // fruit reaching bottom / hitting player
-    for(const f of fruits){
+    // critter reaching bottom / hitting player
+    for(const f of critters){
       if(f.dead) continue;
       const dx = f.x - player.x, dy = f.y - player.y;
       const hitDist = f.r + 16;
@@ -472,7 +479,7 @@
         if(!f.bomb) loseLife(1);
       }
     }
-    fruits = fruits.filter(f => !f.dead);
+    critters = critters.filter(f => !f.dead);
 
     // particles
     for(const p of particles){
@@ -571,17 +578,137 @@
     ctx.restore();
   }
 
-  function drawFruits(){
+  function drawBlip(f){
+    const r = f.r;
+    ctx.fillStyle = f.color;
+    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = f.color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-r*0.35,-r*0.8); ctx.lineTo(-r*0.55,-r*1.35); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(r*0.35,-r*0.8); ctx.lineTo(r*0.55,-r*1.35); ctx.stroke();
+    ctx.beginPath(); ctx.arc(-r*0.55,-r*1.35,2,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(r*0.55,-r*1.35,2,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#04030a';
+    ctx.beginPath(); ctx.arc(-r*0.32,-r*0.1,r*0.16,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(r*0.32,-r*0.1,r*0.16,0,Math.PI*2); ctx.fill();
+  }
+
+  function drawZog(f){
+    const r = f.r;
+    ctx.fillStyle = f.color;
+    ctx.beginPath();
+    ctx.moveTo(0,-r);
+    ctx.lineTo(r*0.9, r*0.6); ctx.lineTo(r*0.4, r*0.5); ctx.lineTo(0, r*0.85);
+    ctx.lineTo(-r*0.4, r*0.5); ctx.lineTo(-r*0.9, r*0.6);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(0,-r*0.1,r*0.32,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#04030a';
+    ctx.beginPath(); ctx.arc(0,-r*0.1,r*0.15,0,Math.PI*2); ctx.fill();
+  }
+
+  function drawSquig(f){
+    const r = f.r;
+    ctx.fillStyle = f.color;
+    ctx.beginPath(); ctx.ellipse(0,-r*0.1, r, r*0.75, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = f.color; ctx.lineWidth = r*0.18; ctx.lineCap = 'round';
+    for(let i=-1;i<=1;i++){
+      const baseX = i*r*0.5;
+      const wob = Math.sin(f.phase*2 + i) * r*0.25;
+      ctx.beginPath();
+      ctx.moveTo(baseX, r*0.5);
+      ctx.quadraticCurveTo(baseX+wob, r*0.9, baseX, r*1.25);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#04030a';
+    ctx.beginPath(); ctx.arc(-r*0.3,-r*0.15,r*0.13,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(r*0.3,-r*0.15,r*0.13,0,Math.PI*2); ctx.fill();
+  }
+
+  function drawKrix(f){
+    const r = f.r;
+    ctx.fillStyle = f.color;
+    ctx.beginPath();
+    for(let i=0;i<6;i++){
+      const a = Math.PI/3*i - Math.PI/2;
+      const px = Math.cos(a)*r, py = Math.sin(a)*r;
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath(); ctx.fill();
+    for(let i=0;i<6;i++){
+      const a = Math.PI/3*i - Math.PI/2;
+      const px2 = Math.cos(a)*r*1.4, py2 = Math.sin(a)*r*1.4;
+      const pa = a - 0.25, pb = a + 0.25;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(pa)*r*0.85, Math.sin(pa)*r*0.85);
+      ctx.lineTo(px2, py2);
+      ctx.lineTo(Math.cos(pb)*r*0.85, Math.sin(pb)*r*0.85);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = '#04030a';
+    ctx.fillRect(-r*0.35,-r*0.12,r*0.7,r*0.24);
+  }
+
+  function drawBlorp(f){
+    const r = f.r;
+    ctx.fillStyle = f.color;
+    ctx.beginPath();
+    const bumps = 7;
+    for(let i=0;i<=bumps;i++){
+      const a = (i/bumps)*Math.PI*2;
+      const wob = 1 + Math.sin(a*3 + f.phase*1.5)*0.12;
+      const px = Math.cos(a)*r*wob, py = Math.sin(a)*r*wob*0.85 + r*0.1;
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#04030a'; ctx.lineWidth = r*0.12; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(-r*0.28,-r*0.05,r*0.18,Math.PI*0.15,Math.PI*0.85); ctx.stroke();
+    ctx.beginPath(); ctx.arc(r*0.28,-r*0.05,r*0.18,Math.PI*0.15,Math.PI*0.85); ctx.stroke();
+  }
+
+  function drawNova(f){
+    const r = f.r;
+    const pulse = 1 + Math.sin(frame*0.15)*0.08;
+    ctx.fillStyle = f.color;
+    const spikes = 8;
+    ctx.beginPath();
+    for(let i=0;i<spikes*2;i++){
+      const a = (Math.PI/spikes)*i;
+      const rad = (i%2===0 ? r*pulse : r*0.42);
+      const px = Math.cos(a)*rad, py = Math.sin(a)*rad;
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath(); ctx.arc(0,0,r*0.22,0,Math.PI*2); ctx.fill();
+  }
+
+  function drawMine(f){
+    const r = f.r;
+    ctx.fillStyle = '#241014';
+    ctx.beginPath(); ctx.arc(0,0,r*0.78,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = f.color; ctx.lineWidth = 2;
+    for(let i=0;i<8;i++){
+      const a = Math.PI/4*i;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a)*r*0.78, Math.sin(a)*r*0.78);
+      ctx.lineTo(Math.cos(a)*r*1.25, Math.sin(a)*r*1.25);
+      ctx.stroke();
+    }
+    const on = Math.floor(frame/10) % 2 === 0;
+    ctx.fillStyle = on ? f.color : 'rgba(255,47,47,0.25)';
+    ctx.beginPath(); ctx.arc(0,-r*0.05,r*0.16,0,Math.PI*2); ctx.fill();
+  }
+
+  const CRITTER_DRAWERS = { blip:drawBlip, zog:drawZog, squig:drawSquig, krix:drawKrix, blorp:drawBlorp, nova:drawNova, mine:drawMine };
+
+  function drawCritters(){
     ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for(const f of fruits){
+    for(const f of critters){
       ctx.save();
       ctx.translate(f.x, f.y);
       ctx.shadowColor = f.color;
       ctx.shadowBlur = 12;
-      ctx.font = (f.r*2) + 'px serif';
-      ctx.fillText(f.emoji, 0, 2);
+      (CRITTER_DRAWERS[f.key] || drawBlip)(f);
       ctx.restore();
     }
     ctx.restore();
@@ -606,7 +733,7 @@
     }
     drawStars();
     if(state === 'playing' || state === 'paused'){
-      drawFruits();
+      drawCritters();
       drawBullets();
       drawParticles();
       drawShip();
