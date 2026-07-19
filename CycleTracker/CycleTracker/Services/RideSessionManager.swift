@@ -30,6 +30,7 @@ final class RideSessionManager {
 
     // MARK: Dependencies / internal state
     private let locationManager = LocationManager()
+    private let watch = WatchConnectivityManager()
     private var modelContext: ModelContext?
 
     private var startDate: Date?
@@ -55,6 +56,10 @@ final class RideSessionManager {
         locationManager.authorizationHandler = { [weak self] status in
             self?.authorizationStatus = status
         }
+        // Live heart rate streamed from the Watch companion (Phase 2).
+        watch.heartRateHandler = { [weak self] bpm in
+            self?.currentHeartRate = bpm
+        }
     }
 
     func requestAuthorization() {
@@ -73,6 +78,7 @@ final class RideSessionManager {
         }
         startTimer()
         locationManager.startUpdates(background: true)
+        watch.startRide()
     }
 
     func pause() {
@@ -100,6 +106,7 @@ final class RideSessionManager {
         stopTimer()
         locationManager.stopUpdates()
         locationManager.locationHandler = nil
+        watch.stopRide()
 
         let ride = Ride(
             startDate: start,
@@ -141,6 +148,7 @@ final class RideSessionManager {
         stopTimer()
         locationManager.stopUpdates()
         locationManager.locationHandler = nil
+        watch.stopRide()
         resetMetrics()
         state = .idle
     }
