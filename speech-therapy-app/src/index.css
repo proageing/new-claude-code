@@ -1,0 +1,114 @@
+:root {
+  --bg: #f4f8fb;
+  --text: #2d3748;
+  --text-muted: #64748b;
+  --card-bg: #ffffff;
+  --card-border: #dfe3e8;
+  --accent: #2b6cb0;
+  --accent-hover: #2c5282;
+  --sky-top: #bee3f8;
+  --sky-bottom: #ebf8ff;
+  --zone-good-top: #b6ecc8;
+  --zone-good-bottom: #ddf5e4;
+  --target-line: #d69e2e;
+  --ground: #68843a;
+  --status-good: #2f855a;
+  --status-low: #718096;
+  --error: #c0392b;
+  --debug-text: #94a3b8;
+
+  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 18px/145% var(--sans);
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 1024px) {
+    font-size: 16px;
+  }
+}
+
+/* Dark mode leans into the subject rather than just darkening the same
+   blue: the sky becomes dusk/night, echoing the balloon-in-sky metaphor
+   instead of a naive color invert. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --card-bg: #1b212b;
+    --card-border: #2b3444;
+    --accent: #63b3ed;
+    --accent-hover: #90cdf4;
+    --sky-top: #1e3a5f;
+    --sky-bottom: #0f1d2e;
+    --zone-good-top: #1c3a2c;
+    --zone-good-bottom: #16281e;
+    --target-line: #ecc94b;
+    --ground: #5f9c5a;
+    --status-good: #68d391;
+    --status-low: #a0aec0;
+    --error: #fc8181;
+    --debug-text: #64748b;
+  }
+}
+
+/* The viewer's explicit theme toggle stamps data-theme on the root and
+   must win over the OS-level media query in both directions. */
+:root[data-theme="dark"] {
+  --bg: #12161c;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --card-bg: #1b212b;
+  --card-border: #2b3444;
+  --accent: #63b3ed;
+  --accent-hover: #90cdf4;
+  --sky-top: #1e3a5f;
+  --sky-bottom: #0f1d2e;
+  --zone-good-top: #1c3a2c;
+  --zone-good-bottom: #16281e;
+  --target-line: #ecc94b;
+  --ground: #5f9c5a;
+  --status-good: #68d391;
+  --status-low: #a0aec0;
+  --error: #fc8181;
+  --debug-text: #64748b;
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f8fb;
+  --text: #2d3748;
+  --text-muted: #64748b;
+  --card-bg: #ffffff;
+  --card-border: #dfe3e8;
+  --accent: #2b6cb0;
+  --accent-hover: #2c5282;
+  --sky-top: #bee3f8;
+  --sky-bottom: #ebf8ff;
+  --zone-good-top: #b6ecc8;
+  --zone-good-bottom: #ddf5e4;
+  --target-line: #d69e2e;
+  --ground: #68843a;
+  --status-good: #2f855a;
+  --status-low: #718096;
+  --error: #c0392b;
+  --debug-text: #94a3b8;
+}
+
+body {
+  margin: 0;
+}
+
+h1,
+h2 {
+  font-family: var(--sans);
+  font-weight: 600;
+  color: var(--text);
+  text-wrap: balance;
+}

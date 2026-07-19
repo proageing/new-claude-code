@@ -1,0 +1,44 @@
+.sky {
+  position: relative;
+  width: 160px;
+  height: 320px;
+  /* Hard color stop at 50% (the target line's fixed position): green above
+     -- "you're on target, stay here" -- neutral blue below, so the goal
+     reads as a zone to reach rather than a line to interpret. */
+  background: linear-gradient(
+    to bottom,
+    var(--zone-good-top) 0%,
+    var(--zone-good-bottom) 50%,
+    var(--sky-top) 50%,
+    var(--sky-bottom) 100%
+  );
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.target-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--target-line);
+  bottom: 50%; /* starting altitude — the "keep it above here" goal line */
+  z-index: 1;
+}
+
+.balloon {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 2.5rem;
+  z-index: 2;
+}
+
+.ground {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 12px;
+  background: var(--ground);
+}

@@ -1,0 +1,100 @@
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.card {
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.card button {
+  font-size: 1rem;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+.card button:hover {
+  background: var(--accent-hover);
+}
+
+.card button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.countdown {
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.countdown-small {
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.debug-line {
+  font-size: 0.75rem;
+  color: var(--debug-text);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.error {
+  color: var(--error);
+}
+
+.baseline-summary {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.status-good,
+.status-low {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.status-good {
+  color: var(--status-good);
+}
+
+.status-low {
+  color: var(--status-low);
+}
+
+.stat {
+  font-size: 0.9rem;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-table th,
+.history-table td {
+  border-bottom: 1px solid var(--card-border);
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+}
