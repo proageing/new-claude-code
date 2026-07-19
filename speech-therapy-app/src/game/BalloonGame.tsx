@@ -10,19 +10,29 @@ import "./BalloonGame.css";
 // sinks; the patient has to sustain clearly loud speech to climb, which is
 // the actual LSVT-style goal (sustained loudness, not a threshold tap).
 //
-// First-pass constants (0.15 / 0.25) were tuned without a real mic and were
-// far too sensitive in practice: real speech routinely swings well above
-// the calibrated target (natural speech dynamics, not the flatter "ahh"
-// held during calibration), so the balloon shot to the ceiling in under a
-// second and stayed pinned there. EFFECTIVE_DB_CLAMP bounds how much any
-// single frame — including a stray cough or mic pop — can influence the
-// physics, and the lower gain/gravity values mean reaching the ceiling
-// takes several seconds of sustained, clearly-loud speech instead of one
-// loud syllable.
+// v1 (0.15 / 0.25, no real mic): real speech swings well above the
+// calibrated target more than the flatter "ahh" held during calibration, so
+// the balloon shot to the ceiling in under a second and stayed pinned.
+// v2 (0.03 / 0.08) fixed the instant-ceiling problem but, in fixing it,
+// raised the "hover point" — the dB excess needed just to hold position —
+// from ~1.7dB to ~2.7dB, which real-mic testing showed requires noticeably
+// louder-than-intended speech just to stay level. These values keep the
+// hover point close to v1 (~1.5dB above target) while keeping the overall
+// speed gentle: reaching the ceiling from a steady, clearly-loud voice takes
+// several seconds, not one syllable, and it drifts back down during normal
+// pauses. EFFECTIVE_DB_CLAMP bounds how much any single frame — including a
+// stray cough or mic pop — can influence the physics.
 const EFFECTIVE_DB_CLAMP = 12;
-const RISE_GAIN_PER_DB = 0.03;
-const GRAVITY_PER_FRAME = 0.08;
+const RISE_GAIN_PER_DB = 0.012;
+const GRAVITY_PER_FRAME = 0.018;
 const DEFAULT_DURATION_SECONDS = 60;
+// The balloon emoji renders above its own CSS anchor point, so letting
+// altitude reach a literal 100% pushes most of the glyph above the "sky"
+// container, where overflow:hidden clips it to a sliver. Capping the
+// *displayed* position (not the underlying altitude/score, which still use
+// the true 0-100 range) leaves headroom so it stays fully visible at the
+// top.
+const MAX_VISIBLE_ALTITUDE_PERCENT = 85;
 
 interface Props {
   baseline: CalibrationBaseline;
@@ -109,6 +119,7 @@ export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECON
 
   const currentDbfs = sample?.smoothedDbfs ?? baseline.targetDbfs - 20;
   const isAboveTarget = currentDbfs >= baseline.targetDbfs;
+  const displayAltitude = Math.min(altitude, MAX_VISIBLE_ALTITUDE_PERCENT);
 
   return (
     <div className="card">
@@ -117,7 +128,7 @@ export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECON
 
       <div className="sky">
         <div className="target-line" />
-        <div className="balloon" style={{ bottom: `${altitude}%` }} role="img" aria-label="balloon">
+        <div className="balloon" style={{ bottom: `${displayAltitude}%` }} role="img" aria-label="balloon">
           🎈
         </div>
         <div className="ground" />
