@@ -6,5 +6,7 @@ export interface SessionRecord {
   targetDbfs: number;
   pctAboveThreshold: number;
   durationSeconds: number;
-  peakAltitude: number;
+  // Best 0-100 position reached during the round -- balloon altitude,
+  // sailboat progress, or any future game skin's equivalent.
+  peakProgress: number;
 }

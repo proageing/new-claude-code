@@ -3,28 +3,19 @@ import { useAudioMeter } from "../audio/useAudioMeter";
 import { toVolumeScore, type CalibrationBaseline } from "../audio/calibration";
 import type { SessionRecord } from "./types";
 import { clamp, computeTargetPosition } from "./gameMath";
-import "./BalloonGame.css";
+import "./SailboatGame.css";
 
-// Two earlier versions of this game used an accumulator model: loudness
-// added "velocity", a fixed gravity constant subtracted from it each frame.
-// That's fragile for a "keep it level" mechanic — any small persistent bias
-// compounds over time instead of settling, which is why real-mic testing
-// kept showing the same symptom (balloon climbs and never comes back down)
-// no matter how the gain/gravity constants were tuned. This version instead
-// recomputes a *target* altitude directly from current loudness every frame
-// (see computeTargetPosition in gameMath.ts) and eases the displayed
-// altitude toward it. Since the target is always a direct function of
-// current input rather than accumulated history, it can't drift or get
-// stuck — it settles wherever the patient's current loudness maps to.
-const EASE_FACTOR = 0.08; // fraction of the gap to target altitude closed per frame
+// Same validated core as BalloonGame (proportional position mapping + easing
+// toward it, see gameMath.ts) -- the variety here is in the skin and the
+// axis of motion (horizontal progress toward a finish line, not vertical
+// climb), not in re-solving physics that already works.
+const EASE_FACTOR = 0.08;
 const DEFAULT_DURATION_SECONDS = 10;
-// The balloon emoji renders above its own CSS anchor point, so letting
-// altitude reach a literal 100% pushes most of the glyph above the "sky"
-// container, where overflow:hidden clips it to a sliver. Capping the
-// *displayed* position (not the underlying altitude/score, which still use
-// the true 0-100 range) leaves headroom so it stays fully visible at the
-// top.
-const MAX_VISIBLE_ALTITUDE_PERCENT = 85;
+// The boat emoji renders centered on its anchor and extends past it, so
+// letting progress reach a literal 100% would push it half off the right
+// edge of the lane, where overflow:hidden clips it. Cap the *displayed*
+// position (not the underlying progress/score) for headroom.
+const MAX_VISIBLE_PROGRESS_PERCENT = 92;
 
 interface Props {
   baseline: CalibrationBaseline;
@@ -32,10 +23,10 @@ interface Props {
   onComplete: (record: Omit<SessionRecord, "id" | "timestamp">) => void;
 }
 
-export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECONDS, onComplete }: Props) {
+export function SailboatGame({ baseline, durationSeconds = DEFAULT_DURATION_SECONDS, onComplete }: Props) {
   const { sample, error, isRunning, start, stop } = useAudioMeter();
-  const [altitude, setAltitude] = useState(50);
-  const [peakAltitude, setPeakAltitude] = useState(50);
+  const [progress, setProgress] = useState(50);
+  const [peakProgress, setPeakProgress] = useState(50);
   const [framesAbove, setFramesAbove] = useState(0);
   const [framesTotal, setFramesTotal] = useState(0);
   const [remainingSeconds, setRemainingSeconds] = useState(durationSeconds);
@@ -76,11 +67,11 @@ export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECON
   useEffect(() => {
     if (!sample || !isRunning || finished) return;
 
-    const targetAltitude = computeTargetPosition(sample.smoothedDbfs, baseline);
+    const targetProgress = computeTargetPosition(sample.smoothedDbfs, baseline);
 
-    setAltitude((prev) => {
-      const next = clamp(prev + (targetAltitude - prev) * EASE_FACTOR, 0, 100);
-      setPeakAltitude((peak) => Math.max(peak, next));
+    setProgress((prev) => {
+      const next = clamp(prev + (targetProgress - prev) * EASE_FACTOR, 0, 100);
+      setPeakProgress((peak) => Math.max(peak, next));
       return next;
     });
     setFramesTotal((t) => t + 1);
@@ -102,37 +93,39 @@ export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECON
       targetDbfs: baseline.targetDbfs,
       pctAboveThreshold,
       durationSeconds,
-      peakProgress: peakAltitude,
+      peakProgress,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [finished]);
 
   const currentDbfs = sample?.smoothedDbfs ?? baseline.targetDbfs - 20;
   const isAboveTarget = currentDbfs >= baseline.targetDbfs;
-  const displayAltitude = Math.min(altitude, MAX_VISIBLE_ALTITUDE_PERCENT);
+  const displayProgress = Math.min(progress, MAX_VISIBLE_PROGRESS_PERCENT);
 
   return (
     <div className="card">
-      <h2>Keep the balloon aloft</h2>
+      <h2>Sail to the finish</h2>
       <p className="countdown-small">{remainingSeconds}s remaining</p>
 
       <p className={isAboveTarget ? "status-good" : "status-low"}>
-        {isAboveTarget ? "▲ Loud and clear — stay here!" : "▼ Project louder to reach the green"}
+        {isAboveTarget ? "▶ Catching the wind — sail on!" : "◀ Speak up to catch the wind"}
       </p>
 
-      <div className="sky">
-        <div className="target-line" />
-        <div className="balloon" style={{ bottom: `${displayAltitude}%` }} role="img" aria-label="balloon">
-          🎈
+      <div className="water">
+        <div className="wind-line" />
+        <div className="finish-flag" role="img" aria-label="finish flag">
+          🏁
         </div>
-        <div className="ground" />
+        <div className="boat" style={{ left: `${displayProgress}%` }} role="img" aria-label="sailboat">
+          ⛵
+        </div>
       </div>
 
       {/* Temporary while we're still tuning the physics against real voices —
           remove once the feel is validated. */}
       <p className="debug-line">
-        volume: {toVolumeScore(currentDbfs)} · target: {toVolumeScore(baseline.targetDbfs)} · altitude:{" "}
-        {Math.round(altitude)}%
+        volume: {toVolumeScore(currentDbfs)} · target: {toVolumeScore(baseline.targetDbfs)} · progress:{" "}
+        {Math.round(progress)}%
       </p>
 
       {error && <p className="error">{error}</p>}

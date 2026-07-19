@@ -1,9 +1,3 @@
-.countdown-small {
-  font-size: 1.25rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
 .sky {
   position: relative;
   width: 160px;
@@ -38,13 +32,6 @@
   transform: translateX(-50%);
   font-size: 2.5rem;
   z-index: 2;
-}
-
-.debug-line {
-  font-size: 0.75rem;
-  color: var(--debug-text);
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
 }
 
 .ground {

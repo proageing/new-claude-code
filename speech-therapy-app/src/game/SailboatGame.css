@@ -1,0 +1,44 @@
+.water {
+  position: relative;
+  width: 320px;
+  height: 120px;
+  /* Hard color stop at 50% (the wind-line's fixed position): becalmed
+     blue-gray on the left, green-tinted "good wind" water on the right --
+     mirrors the balloon's zone concept, rotated to a horizontal goal. */
+  background: linear-gradient(
+    to right,
+    var(--sky-bottom) 0%,
+    var(--sky-top) 50%,
+    var(--zone-good-bottom) 50%,
+    var(--zone-good-top) 100%
+  );
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.wind-line {
+  position: absolute;
+  top: 0;
+  left: 50%; /* starting position — the "reach past here" goal line */
+  width: 3px;
+  height: 100%;
+  background: var(--target-line);
+  z-index: 1;
+}
+
+.finish-flag {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  font-size: 1.75rem;
+  z-index: 1;
+}
+
+.boat {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.25rem;
+  z-index: 2;
+}

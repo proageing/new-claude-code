@@ -45,6 +45,19 @@
   font-weight: 700;
 }
 
+.countdown-small {
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.debug-line {
+  font-size: 0.75rem;
+  color: var(--debug-text);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
 .error {
   color: var(--error);
 }
