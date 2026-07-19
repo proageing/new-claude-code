@@ -4,13 +4,21 @@ A native iOS app to track cycling rides — live speed, distance, and (from Phas
 heart rate — with a history view for tracking progression over time. Built in
 Swift/SwiftUI. Designed for personal sideload install via Xcode.
 
-## Status: Phase 2 — Watch companion + live heart rate
+## Status: Phase 3 — Siri voice queries
 
 What works now:
 
 - **Live Ride tab** — Start / Pause / Resume / Finish a ride, with big glanceable
   tiles for current **speed** (km/h), **distance** (km), elapsed **time**, and
   live **heart rate** (bpm) streamed from the Apple Watch.
+- **Siri voice queries** — ask hands-free (through your AirPods mic) and Siri
+  speaks the answer back, without opening the app. Say things like:
+  - "*CycleTracker status*" → speed, distance, and heart rate in one reply
+  - "*What's my speed in CycleTracker*"
+  - "*How far have I gone in CycleTracker*"
+  - "*What's my heart rate in CycleTracker*"
+
+  If you're not on a ride, Siri replies "You're not on a ride right now."
 - **GPS tracking** via Core Location, tuned for cycling (best-for-navigation
   accuracy, `.fitness` activity type). Background location mode is enabled so
   tracking keeps running with the screen locked / phone in a pocket.
@@ -23,8 +31,22 @@ What works now:
 - **History tab** — reverse-chronological list of past rides with a "this week"
   distance/count summary, plus max HR per ride. Swipe to delete.
 
-Not yet built (later phases): Siri voice queries, weekly/monthly charts, and the
-resting/max HR + VO2max trends.
+Not yet built (later phases): weekly/monthly charts and the resting/max HR +
+VO2max trends.
+
+### How the Siri integration works
+
+The ride session continuously publishes a small snapshot (speed, distance, heart
+rate, riding-or-not) to a thread-safe, process-wide `LiveRideStore`, mirrored to
+`UserDefaults`. Siri App Intents read that snapshot off the main actor and return
+spoken dialog — so they answer even when Siri runs the intent in the background
+while your phone is pocketed and the ride is recording. Phrases are registered via
+an `AppShortcutsProvider`; Apple requires each phrase to include the app name, so
+queries are phrased like "*CycleTracker speed*".
+
+> **First-run note:** build & launch the app once so iOS registers the shortcuts,
+> then the phrases become available to Siri. On a real ride, start the ride first
+> (so the app is running with background location) for the freshest answers.
 
 ### How the phone ↔ watch handoff works
 
@@ -82,7 +104,12 @@ CycleTracker/
 │  ├─ Services/
 │  │  ├─ LocationManager.swift    # CLLocationManager wrapper, cycling-tuned
 │  │  ├─ RideSessionManager.swift # Ride state machine + persistence
-│  │  └─ WatchConnectivityManager.swift # Phone side of the watch link
+│  │  ├─ WatchConnectivityManager.swift # Phone side of the watch link
+│  │  └─ LiveRideStore.swift      # Thread-safe live snapshot for Siri intents
+│  ├─ Intents/
+│  │  ├─ RideIntents.swift        # App Intents: status / speed / distance / HR
+│  │  ├─ CycleShortcuts.swift     # Registers Siri phrases
+│  │  └─ SpokenRide.swift         # Snapshot → spoken sentences
 │  ├─ Utilities/
 │  │  └─ Formatters.swift         # Unit conversions & display formatting
 │  └─ Views/
@@ -108,7 +135,7 @@ no need to edit the project file as later phases add sources.
 |------:|-------|
 | **1** ✅ | Core GPS ride tracking, local storage, Live + History UI |
 | **2** ✅ | watchOS companion + live heart-rate streaming |
-| 3 | Siri App Intents for spoken speed / distance / heart-rate |
+| **3** ✅ | Siri App Intents for spoken speed / distance / heart-rate |
 | 4 | Weekly & monthly progression charts |
 | 5 | Resting HR / max HR tracking + VO2max (Uth–Sørensen formula + Apple estimate) |
 | 6 | Route map, iCloud backup, battery/accuracy tuning |

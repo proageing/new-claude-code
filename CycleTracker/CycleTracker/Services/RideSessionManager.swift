@@ -59,7 +59,9 @@ final class RideSessionManager {
         // Live heart rate streamed from the Watch companion (Phase 2).
         watch.heartRateHandler = { [weak self] bpm in
             self?.currentHeartRate = bpm
+            self?.publishSnapshot()
         }
+        publishSnapshot()
     }
 
     func requestAuthorization() {
@@ -79,6 +81,7 @@ final class RideSessionManager {
         startTimer()
         locationManager.startUpdates(background: true)
         watch.startRide()
+        publishSnapshot()
     }
 
     func pause() {
@@ -89,6 +92,7 @@ final class RideSessionManager {
         locationManager.stopUpdates()
         currentSpeedMetersPerSecond = 0
         lastLocation = nil
+        publishSnapshot()
     }
 
     func resume() {
@@ -96,6 +100,7 @@ final class RideSessionManager {
         state = .recording
         startTimer()
         locationManager.startUpdates(background: true)
+        publishSnapshot()
     }
 
     /// Finalizes and persists the ride. Returns the saved `Ride`, or nil if idle.
@@ -140,6 +145,7 @@ final class RideSessionManager {
 
         resetMetrics()
         state = .idle
+        publishSnapshot()
         return ride
     }
 
@@ -151,6 +157,7 @@ final class RideSessionManager {
         watch.stopRide()
         resetMetrics()
         state = .idle
+        publishSnapshot()
     }
 
     // MARK: Location handling
@@ -211,6 +218,22 @@ final class RideSessionManager {
     private func tick() {
         guard let segmentStart else { return }
         elapsedSeconds = accumulatedSeconds + Date().timeIntervalSince(segmentStart)
+        publishSnapshot()
+    }
+
+    // MARK: Live snapshot (for Siri App Intents)
+
+    /// Publishes the current metrics to the process-wide `LiveRideStore` so Siri
+    /// intents can read them off the main actor. A paused ride still counts as
+    /// "riding" so Siri reports distance/heart rate rather than "not on a ride".
+    private func publishSnapshot() {
+        LiveRideStore.shared.update(RideSnapshot(
+            isRiding: state != .idle,
+            speedMetersPerSecond: currentSpeedMetersPerSecond,
+            distanceMeters: distanceMeters,
+            heartRate: currentHeartRate,
+            updatedAt: Date()
+        ))
     }
 
     private func bankElapsed() {
