@@ -12,7 +12,19 @@ const SAMPLE_INTERVAL_MS = 16; // approximate requestAnimationFrame cadence (~60
 // producing an uncontrollable game.
 const MIN_GAP_DB = 8;
 
-type Step = "intro" | "comfortable" | "loud" | "tooNarrow" | "done";
+// Each capture has a "ready" phase (instructions + a button the patient
+// clicks when they're prepared) and a "recording" phase (mic live,
+// counting down). Recording no longer starts automatically the instant the
+// previous step ends -- that gave no time to breathe or get ready between
+// the comfortable and loud captures.
+type Step =
+  | "intro"
+  | "comfortable-ready"
+  | "comfortable-recording"
+  | "loud-ready"
+  | "loud-recording"
+  | "tooNarrow"
+  | "done";
 
 interface Props {
   onComplete: (baseline: CalibrationBaseline) => void;
@@ -29,19 +41,18 @@ export function CalibrationFlow({ onComplete }: Props) {
   const [countdown, setCountdown] = useState(0);
   const { sample, error, isRunning, start, stop } = useAudioMeter();
   const samplesRef = useRef<number[]>([]);
+  const comfortableDbfsRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (step !== "comfortable" && step !== "loud") return;
+    if (step !== "comfortable-recording" && step !== "loud-recording") return;
     if (!isRunning || !sample) return;
     samplesRef.current.push(sample.instantDbfs);
   }, [sample, isRunning, step]);
 
-  // Records one step (comfortable or loud) and resolves with its average
-  // dBFS. Each step needs its own mic start/stop and countdown, so the two
-  // steps must be awaited in sequence rather than fired independently.
-  async function captureStep(next: "comfortable" | "loud"): Promise<number> {
+  // Runs one capture's mic + countdown and resolves with its average dBFS.
+  async function record(recordingStep: "comfortable-recording" | "loud-recording"): Promise<number> {
     samplesRef.current = [];
-    setStep(next);
+    setStep(recordingStep);
     setCountdown(Math.ceil(CAPTURE_DURATION_MS / 1000));
     await start();
 
@@ -56,9 +67,16 @@ export function CalibrationFlow({ onComplete }: Props) {
     return summarizeCapture(samplesRef.current, SAMPLE_INTERVAL_MS);
   }
 
-  async function runFullCalibration() {
-    const comfortableDbfs = await captureStep("comfortable");
-    const loudDbfs = await captureStep("loud");
+  async function startComfortableRecording() {
+    const comfortableDbfs = await record("comfortable-recording");
+    comfortableDbfsRef.current = comfortableDbfs;
+    setStep("loud-ready");
+  }
+
+  async function startLoudRecording() {
+    const comfortableDbfs = comfortableDbfsRef.current;
+    if (comfortableDbfs === null) return; // shouldn't happen
+    const loudDbfs = await record("loud-recording");
     if (loudDbfs - comfortableDbfs < MIN_GAP_DB) {
       setStep("tooNarrow");
       return;
@@ -77,20 +95,38 @@ export function CalibrationFlow({ onComplete }: Props) {
           "projecting across a room" volume. This takes about 10 seconds and
           is redone each session.
         </p>
-        <button onClick={() => runFullCalibration()}>Start Calibration</button>
+        <button onClick={() => setStep("comfortable-ready")}>Start Calibration</button>
         {error && <p className="error">{error}</p>}
       </div>
     );
   }
 
-  if (step === "comfortable" || step === "loud") {
+  if (step === "comfortable-ready" || step === "loud-ready") {
+    const isComfortable = step === "comfortable-ready";
+    return (
+      <div className="card">
+        <h2>{isComfortable ? "Step 1 of 2" : "Step 2 of 2"}</h2>
+        <p>
+          {isComfortable
+            ? 'When you\'re ready, say "ahh" at your normal, comfortable speaking volume.'
+            : 'When you\'re ready, say "ahh" as loud as you comfortably can — like projecting across a room.'}
+        </p>
+        <button onClick={() => (isComfortable ? startComfortableRecording() : startLoudRecording())}>
+          Start Recording
+        </button>
+        {error && <p className="error">{error}</p>}
+      </div>
+    );
+  }
+
+  if (step === "comfortable-recording" || step === "loud-recording") {
     const label =
-      step === "comfortable"
+      step === "comfortable-recording"
         ? 'Say "ahh" at your normal, comfortable speaking volume'
         : 'Now say "ahh" as loud as you comfortably can — like projecting across a room';
     return (
       <div className="card">
-        <h2>{step === "comfortable" ? "Step 1 of 2" : "Step 2 of 2"}</h2>
+        <h2>{step === "comfortable-recording" ? "Step 1 of 2" : "Step 2 of 2"}</h2>
         <p>{label}</p>
         <div className="countdown">{countdown}</div>
         {error && <p className="error">{error}</p>}
@@ -108,7 +144,7 @@ export function CalibrationFlow({ onComplete }: Props) {
           like calling to someone across a room, not just talking a bit
           louder.
         </p>
-        <button onClick={() => runFullCalibration()}>Try Again</button>
+        <button onClick={() => setStep("comfortable-ready")}>Try Again</button>
         {error && <p className="error">{error}</p>}
       </div>
     );
