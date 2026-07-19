@@ -17,7 +17,7 @@ import "./BalloonGame.css";
 // current input rather than accumulated history, it can't drift or get
 // stuck — it settles wherever the patient's current loudness maps to.
 const EASE_FACTOR = 0.08; // fraction of the gap to target altitude closed per frame
-const DEFAULT_DURATION_SECONDS = 60;
+const DEFAULT_DURATION_SECONDS = 10;
 // The balloon emoji renders above its own CSS anchor point, so letting
 // altitude reach a literal 100% pushes most of the glyph above the "sky"
 // container, where overflow:hidden clips it to a sliver. Capping the
