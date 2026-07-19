@@ -28,7 +28,6 @@
   left: 50%;
   transform: translateX(-50%);
   font-size: 2.5rem;
-  transition: bottom 80ms linear;
   z-index: 2;
 }
 
