@@ -32,6 +32,12 @@
   z-index: 2;
 }
 
+.debug-line {
+  font-size: 0.75rem;
+  color: #999;
+  font-family: monospace;
+}
+
 .ground {
   position: absolute;
   bottom: 0;

@@ -2,29 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { useAudioMeter } from "../audio/useAudioMeter";
 import type { CalibrationBaseline } from "../audio/calibration";
 import type { SessionRecord } from "./types";
-import { clamp } from "./gameMath";
+import { clamp, computeTargetAltitude } from "./gameMath";
 import "./BalloonGame.css";
 
-// How strongly loudness above/below target moves the balloon, and how hard
-// gravity pulls it down. Gravity means clearing the target by a hair still
-// sinks; the patient has to sustain clearly loud speech to climb, which is
-// the actual LSVT-style goal (sustained loudness, not a threshold tap).
-//
-// v1 (0.15 / 0.25, no real mic): real speech swings well above the
-// calibrated target more than the flatter "ahh" held during calibration, so
-// the balloon shot to the ceiling in under a second and stayed pinned.
-// v2 (0.03 / 0.08) fixed the instant-ceiling problem but, in fixing it,
-// raised the "hover point" — the dB excess needed just to hold position —
-// from ~1.7dB to ~2.7dB, which real-mic testing showed requires noticeably
-// louder-than-intended speech just to stay level. These values keep the
-// hover point close to v1 (~1.5dB above target) while keeping the overall
-// speed gentle: reaching the ceiling from a steady, clearly-loud voice takes
-// several seconds, not one syllable, and it drifts back down during normal
-// pauses. EFFECTIVE_DB_CLAMP bounds how much any single frame — including a
-// stray cough or mic pop — can influence the physics.
-const EFFECTIVE_DB_CLAMP = 12;
-const RISE_GAIN_PER_DB = 0.012;
-const GRAVITY_PER_FRAME = 0.018;
+// Two earlier versions of this game used an accumulator model: loudness
+// added "velocity", a fixed gravity constant subtracted from it each frame.
+// That's fragile for a "keep it level" mechanic — any small persistent bias
+// compounds over time instead of settling, which is why real-mic testing
+// kept showing the same symptom (balloon climbs and never comes back down)
+// no matter how the gain/gravity constants were tuned. This version instead
+// recomputes a *target* altitude directly from current loudness every frame
+// (see computeTargetAltitude in gameMath.ts) and eases the displayed
+// altitude toward it. Since the target is always a direct function of
+// current input rather than accumulated history, it can't drift or get
+// stuck — it settles wherever the patient's current loudness maps to.
+const EASE_FACTOR = 0.08; // fraction of the gap to target altitude closed per frame
 const DEFAULT_DURATION_SECONDS = 60;
 // The balloon emoji renders above its own CSS anchor point, so letting
 // altitude reach a literal 100% pushes most of the glyph above the "sky"
@@ -84,12 +76,10 @@ export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECON
   useEffect(() => {
     if (!sample || !isRunning || finished) return;
 
-    const rawEffectiveDb = sample.smoothedDbfs - baseline.targetDbfs;
-    const effectiveDb = clamp(rawEffectiveDb, -EFFECTIVE_DB_CLAMP, EFFECTIVE_DB_CLAMP);
-    const delta = effectiveDb * RISE_GAIN_PER_DB - GRAVITY_PER_FRAME;
+    const targetAltitude = computeTargetAltitude(sample.smoothedDbfs, baseline);
 
     setAltitude((prev) => {
-      const next = clamp(prev + delta, 0, 100);
+      const next = clamp(prev + (targetAltitude - prev) * EASE_FACTOR, 0, 100);
       setPeakAltitude((peak) => Math.max(peak, next));
       return next;
     });
@@ -136,6 +126,13 @@ export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECON
 
       <p className={isAboveTarget ? "status-good" : "status-low"}>
         {isAboveTarget ? "Loud and clear — rising!" : "Project louder to climb"}
+      </p>
+
+      {/* Temporary while we're still tuning the physics against real voices —
+          remove once the feel is validated. */}
+      <p className="debug-line">
+        now: {currentDbfs.toFixed(1)} dBFS · target: {baseline.targetDbfs.toFixed(1)} · altitude:{" "}
+        {Math.round(altitude)}%
       </p>
 
       {error && <p className="error">{error}</p>}
