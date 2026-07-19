@@ -6,13 +6,22 @@ import { clamp } from "./gameMath";
 import "./BalloonGame.css";
 
 // How strongly loudness above/below target moves the balloon, and how hard
-// gravity pulls it down. Tuned by feel, not measurement — expect to revisit
-// once real patients try it. Gravity means clearing the target by a hair
-// still sinks; the patient has to sustain clearly loud speech to climb,
-// which is the actual LSVT-style goal (sustained loudness, not a threshold
-// tap).
-const RISE_GAIN_PER_DB = 0.15;
-const GRAVITY_PER_FRAME = 0.25;
+// gravity pulls it down. Gravity means clearing the target by a hair still
+// sinks; the patient has to sustain clearly loud speech to climb, which is
+// the actual LSVT-style goal (sustained loudness, not a threshold tap).
+//
+// First-pass constants (0.15 / 0.25) were tuned without a real mic and were
+// far too sensitive in practice: real speech routinely swings well above
+// the calibrated target (natural speech dynamics, not the flatter "ahh"
+// held during calibration), so the balloon shot to the ceiling in under a
+// second and stayed pinned there. EFFECTIVE_DB_CLAMP bounds how much any
+// single frame — including a stray cough or mic pop — can influence the
+// physics, and the lower gain/gravity values mean reaching the ceiling
+// takes several seconds of sustained, clearly-loud speech instead of one
+// loud syllable.
+const EFFECTIVE_DB_CLAMP = 12;
+const RISE_GAIN_PER_DB = 0.03;
+const GRAVITY_PER_FRAME = 0.08;
 const DEFAULT_DURATION_SECONDS = 60;
 
 interface Props {
@@ -65,7 +74,8 @@ export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECON
   useEffect(() => {
     if (!sample || !isRunning || finished) return;
 
-    const effectiveDb = sample.smoothedDbfs - baseline.targetDbfs;
+    const rawEffectiveDb = sample.smoothedDbfs - baseline.targetDbfs;
+    const effectiveDb = clamp(rawEffectiveDb, -EFFECTIVE_DB_CLAMP, EFFECTIVE_DB_CLAMP);
     const delta = effectiveDb * RISE_GAIN_PER_DB - GRAVITY_PER_FRAME;
 
     setAltitude((prev) => {
