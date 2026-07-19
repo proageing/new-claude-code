@@ -2,17 +2,17 @@
   max-width: 480px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
-  font-family: system-ui, sans-serif;
   text-align: center;
 }
 
 .subtitle {
-  color: #666;
+  color: var(--text-muted);
   margin-bottom: 2rem;
 }
 
 .card {
-  border: 1px solid #ddd;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
   border-radius: 12px;
   padding: 1.5rem;
   display: flex;
@@ -26,13 +26,18 @@
   padding: 0.6rem 1.5rem;
   border-radius: 8px;
   border: none;
-  background: #2b6cb0;
+  background: var(--accent);
   color: white;
   cursor: pointer;
 }
 
 .card button:hover {
-  background: #2c5282;
+  background: var(--accent-hover);
+}
+
+.card button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .countdown {
@@ -41,71 +46,37 @@
 }
 
 .error {
-  color: #c0392b;
+  color: var(--error);
 }
 
 .baseline-summary {
   font-size: 0.85rem;
-  color: #555;
-}
-
-.meter-track {
-  position: relative;
-  width: 60px;
-  height: 240px;
-  background: #eee;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.meter-fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  transition: height 80ms linear;
-}
-
-.meter-fill.above-target {
-  background: #38a169;
-}
-
-.meter-fill.below-target {
-  background: #a0aec0;
-}
-
-.meter-target-line {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: #d69e2e;
-  z-index: 1;
+  color: var(--text-muted);
 }
 
 .status-good {
-  color: #2f855a;
+  color: var(--status-good);
   font-weight: 600;
 }
 
 .status-low {
-  color: #718096;
+  color: var(--status-low);
 }
 
 .stat {
   font-size: 0.9rem;
-  color: #444;
 }
 
 .history-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .history-table th,
 .history-table td {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--card-border);
   padding: 0.4rem 0.5rem;
   text-align: left;
 }

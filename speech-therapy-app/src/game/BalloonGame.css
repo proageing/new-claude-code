@@ -1,14 +1,14 @@
 .countdown-small {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #444;
+  font-variant-numeric: tabular-nums;
 }
 
 .sky {
   position: relative;
   width: 160px;
   height: 320px;
-  background: linear-gradient(to bottom, #bee3f8, #ebf8ff);
+  background: linear-gradient(to bottom, var(--sky-top), var(--sky-bottom));
   border-radius: 8px;
   overflow: hidden;
 }
@@ -18,7 +18,7 @@
   left: 0;
   width: 100%;
   height: 3px;
-  background: #d69e2e;
+  background: var(--target-line);
   bottom: 50%; /* starting altitude — the "keep it above here" goal line */
   z-index: 1;
 }
@@ -34,8 +34,9 @@
 
 .debug-line {
   font-size: 0.75rem;
-  color: #999;
-  font-family: monospace;
+  color: var(--debug-text);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .ground {
@@ -44,5 +45,5 @@
   left: 0;
   width: 100%;
   height: 12px;
-  background: #68843a;
+  background: var(--ground);
 }
