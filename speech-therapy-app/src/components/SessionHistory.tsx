@@ -1,4 +1,5 @@
 import type { SessionRecord } from "../game/types";
+import { toVolumeScore } from "../audio/calibration";
 
 interface Props {
   sessions: SessionRecord[];
@@ -28,8 +29,8 @@ export function SessionHistory({ sessions, onBack }: Props) {
               <tr key={s.id}>
                 <td>{new Date(s.timestamp).toLocaleString()}</td>
                 <td>{s.pctAboveThreshold}%</td>
-                <td>{s.comfortableDbfs.toFixed(1)}</td>
-                <td>{s.loudDbfs.toFixed(1)}</td>
+                <td>{toVolumeScore(s.comfortableDbfs)}</td>
+                <td>{toVolumeScore(s.loudDbfs)}</td>
               </tr>
             ))}
           </tbody>

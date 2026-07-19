@@ -26,3 +26,18 @@ export function deriveBaseline(comfortableDbfs: number, loudDbfs: number): Calib
   const targetDbfs = comfortableDbfs + TARGET_FRACTION * (loudDbfs - comfortableDbfs);
   return { comfortableDbfs, loudDbfs, targetDbfs };
 }
+
+// dBFS is a negative, audio-engineering unit -- correct for the scoring
+// math, but it reads as broken to a patient ("why is my volume negative?").
+// This converts it to a positive 0-100 score for anything shown to users.
+// The scale is fixed (not session-relative), so scores stay comparable
+// across different sessions/days -- which matters for the history table,
+// where the actual clinically meaningful signal is whether a patient's
+// comfortable/loud volume trends up over weeks.
+const DISPLAY_FLOOR_DBFS = -60;
+const DISPLAY_CEILING_DBFS = 0;
+
+export function toVolumeScore(dbfs: number): number {
+  const pct = ((dbfs - DISPLAY_FLOOR_DBFS) / (DISPLAY_CEILING_DBFS - DISPLAY_FLOOR_DBFS)) * 100;
+  return Math.round(Math.min(100, Math.max(0, pct)));
+}

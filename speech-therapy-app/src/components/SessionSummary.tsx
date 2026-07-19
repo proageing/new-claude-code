@@ -1,4 +1,5 @@
 import type { SessionRecord } from "../game/types";
+import { toVolumeScore } from "../audio/calibration";
 
 interface Props {
   record: SessionRecord;
@@ -14,8 +15,8 @@ export function SessionSummary({ record, onPlayAgain, onViewHistory }: Props) {
       <p className="stat">Peak altitude: {Math.round(record.peakAltitude)}%</p>
       <p className="stat">Duration: {record.durationSeconds}s</p>
       <p className="baseline-summary">
-        Comfortable: {record.comfortableDbfs.toFixed(1)} dBFS · Loud:{" "}
-        {record.loudDbfs.toFixed(1)} dBFS · Target: {record.targetDbfs.toFixed(1)} dBFS
+        Comfortable: {toVolumeScore(record.comfortableDbfs)} · Loud: {toVolumeScore(record.loudDbfs)} ·
+        Target: {toVolumeScore(record.targetDbfs)}
       </p>
       <button onClick={onPlayAgain}>Play Again</button>
       <button onClick={onViewHistory}>View History</button>
