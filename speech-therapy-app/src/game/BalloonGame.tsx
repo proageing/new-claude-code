@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAudioMeter } from "../audio/useAudioMeter";
-import type { CalibrationBaseline } from "../audio/calibration";
+import { toVolumeScore, type CalibrationBaseline } from "../audio/calibration";
 import type { SessionRecord } from "./types";
 import { clamp, computeTargetAltitude } from "./gameMath";
 import "./BalloonGame.css";
@@ -131,7 +131,7 @@ export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECON
       {/* Temporary while we're still tuning the physics against real voices —
           remove once the feel is validated. */}
       <p className="debug-line">
-        now: {currentDbfs.toFixed(1)} dBFS · target: {baseline.targetDbfs.toFixed(1)} · altitude:{" "}
+        volume: {toVolumeScore(currentDbfs)} · target: {toVolumeScore(baseline.targetDbfs)} · altitude:{" "}
         {Math.round(altitude)}%
       </p>
 
