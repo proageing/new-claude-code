@@ -22,7 +22,6 @@ export function CalibrationFlow({ onComplete }: Props) {
   const [countdown, setCountdown] = useState(0);
   const { sample, error, isRunning, start, stop } = useAudioMeter();
   const samplesRef = useRef<number[]>([]);
-  const comfortableDbfsRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (step !== "comfortable" && step !== "loud") return;
@@ -30,7 +29,10 @@ export function CalibrationFlow({ onComplete }: Props) {
     samplesRef.current.push(sample.instantDbfs);
   }, [sample, isRunning, step]);
 
-  async function runCapture(next: "comfortable" | "loud") {
+  // Records one step (comfortable or loud) and resolves with its average
+  // dBFS. Each step needs its own mic start/stop and countdown, so the two
+  // steps must be awaited in sequence rather than fired independently.
+  async function captureStep(next: "comfortable" | "loud"): Promise<number> {
     samplesRef.current = [];
     setStep(next);
     setCountdown(Math.ceil(CAPTURE_DURATION_MS / 1000));
@@ -44,18 +46,15 @@ export function CalibrationFlow({ onComplete }: Props) {
     clearInterval(countdownTimer);
     stop();
 
-    const avgDbfs = summarizeCapture(samplesRef.current, SAMPLE_INTERVAL_MS);
+    return summarizeCapture(samplesRef.current, SAMPLE_INTERVAL_MS);
+  }
 
-    if (next === "comfortable") {
-      comfortableDbfsRef.current = avgDbfs;
-      setStep("loud");
-    } else {
-      const comfortableDbfs = comfortableDbfsRef.current;
-      if (comfortableDbfs === null) return; // shouldn't happen
-      const baseline = deriveBaseline(comfortableDbfs, avgDbfs);
-      setStep("done");
-      onComplete(baseline);
-    }
+  async function runFullCalibration() {
+    const comfortableDbfs = await captureStep("comfortable");
+    const loudDbfs = await captureStep("loud");
+    const baseline = deriveBaseline(comfortableDbfs, loudDbfs);
+    setStep("done");
+    onComplete(baseline);
   }
 
   if (step === "intro") {
@@ -67,7 +66,7 @@ export function CalibrationFlow({ onComplete }: Props) {
           "projecting across a room" volume. This takes about 10 seconds and
           is redone each session.
         </p>
-        <button onClick={() => runCapture("comfortable")}>Start Calibration</button>
+        <button onClick={() => runFullCalibration()}>Start Calibration</button>
         {error && <p className="error">{error}</p>}
       </div>
     );
