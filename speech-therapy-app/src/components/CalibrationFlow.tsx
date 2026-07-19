@@ -4,8 +4,15 @@ import { deriveBaseline, summarizeCapture, type CalibrationBaseline } from "../a
 
 const CAPTURE_DURATION_MS = 3000;
 const SAMPLE_INTERVAL_MS = 16; // approximate requestAnimationFrame cadence (~60fps)
+// Below this gap, comfortable and loud are too close for the game to tell
+// apart -- ordinary voice/breath variation would swing across the whole
+// range, which is what made the balloon feel stuck or erratic even after
+// the physics were fixed. Real speech comfortable-to-projecting is
+// typically well past this; catching a too-small gap here beats silently
+// producing an uncontrollable game.
+const MIN_GAP_DB = 8;
 
-type Step = "intro" | "comfortable" | "loud" | "done";
+type Step = "intro" | "comfortable" | "loud" | "tooNarrow" | "done";
 
 interface Props {
   onComplete: (baseline: CalibrationBaseline) => void;
@@ -52,6 +59,10 @@ export function CalibrationFlow({ onComplete }: Props) {
   async function runFullCalibration() {
     const comfortableDbfs = await captureStep("comfortable");
     const loudDbfs = await captureStep("loud");
+    if (loudDbfs - comfortableDbfs < MIN_GAP_DB) {
+      setStep("tooNarrow");
+      return;
+    }
     const baseline = deriveBaseline(comfortableDbfs, loudDbfs);
     setStep("done");
     onComplete(baseline);
@@ -82,6 +93,22 @@ export function CalibrationFlow({ onComplete }: Props) {
         <h2>{step === "comfortable" ? "Step 1 of 2" : "Step 2 of 2"}</h2>
         <p>{label}</p>
         <div className="countdown">{countdown}</div>
+        {error && <p className="error">{error}</p>}
+      </div>
+    );
+  }
+
+  if (step === "tooNarrow") {
+    return (
+      <div className="card">
+        <h2>Let's try that again</h2>
+        <p>
+          Your comfortable and loud volumes came out too close together for
+          the game to tell them apart. For the loud step, really project —
+          like calling to someone across a room, not just talking a bit
+          louder.
+        </p>
+        <button onClick={() => runFullCalibration()}>Try Again</button>
         {error && <p className="error">{error}</p>}
       </div>
     );

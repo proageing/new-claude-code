@@ -46,8 +46,14 @@ export class AudioMeter {
   async start(listener: MeterListener): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
+        // Noise suppression/echo cancellation ON: with them off, an
+        // unfiltered mic picks up ambient/room/fan noise that can sit close
+        // to (or above) a patient's calibrated volume range, making silence
+        // read as "loud enough". autoGainControl stays off since it would
+        // dynamically renormalize levels and compress the very comfortable
+        // vs. loud difference the game depends on.
+        echoCancellation: true,
+        noiseSuppression: true,
         autoGainControl: false,
       },
     });
