@@ -96,3 +96,16 @@
   font-size: 0.9rem;
   color: #444;
 }
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.history-table th,
+.history-table td {
+  border-bottom: 1px solid #eee;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+}

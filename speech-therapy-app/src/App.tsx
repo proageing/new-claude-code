@@ -1,31 +1,65 @@
 import { useState } from "react";
 import { CalibrationFlow } from "./components/CalibrationFlow";
-import { LiveMeter } from "./components/LiveMeter";
+import { SessionSummary } from "./components/SessionSummary";
+import { SessionHistory } from "./components/SessionHistory";
+import { BalloonGame } from "./game/BalloonGame";
+import { loadSessions, saveSession } from "./game/sessionHistory";
 import type { CalibrationBaseline } from "./audio/calibration";
+import type { SessionRecord } from "./game/types";
 import "./App.css";
 
+type View = "calibrating" | "playing" | "summary" | "history";
+
 function App() {
+  const [view, setView] = useState<View>("calibrating");
   const [baseline, setBaseline] = useState<CalibrationBaseline | null>(null);
-  // Bumping this remounts LiveMeter, forcing a fresh mic session on recalibrate.
-  const [meterKey, setMeterKey] = useState(0);
+  const [lastRecord, setLastRecord] = useState<SessionRecord | null>(null);
+  // Bumping this remounts BalloonGame, forcing a fresh mic session each round.
+  const [gameKey, setGameKey] = useState(0);
+
+  function handleCalibrationComplete(newBaseline: CalibrationBaseline) {
+    setBaseline(newBaseline);
+    setView("playing");
+  }
+
+  function handleGameComplete(partialRecord: Omit<SessionRecord, "id" | "timestamp">) {
+    const record: SessionRecord = {
+      ...partialRecord,
+      id: crypto.randomUUID(),
+      timestamp: Date.now(),
+    };
+    saveSession(record);
+    setLastRecord(record);
+    setView("summary");
+  }
 
   return (
     <main className="app-shell">
-      <h1>Voice Volume Calibration Prototype</h1>
-      <p className="subtitle">
-        De-risking mic calibration and real-time metering before building the game.
-      </p>
+      <h1>Loud &amp; Clear</h1>
+      <p className="subtitle">Keep the balloon aloft by speaking loud and clear.</p>
 
-      {!baseline ? (
-        <CalibrationFlow onComplete={setBaseline} />
-      ) : (
-        <LiveMeter
-          key={meterKey}
-          baseline={baseline}
-          onRecalibrate={() => {
+      {view === "calibrating" && <CalibrationFlow onComplete={handleCalibrationComplete} />}
+
+      {view === "playing" && baseline && (
+        <BalloonGame key={gameKey} baseline={baseline} onComplete={handleGameComplete} />
+      )}
+
+      {view === "summary" && lastRecord && (
+        <SessionSummary
+          record={lastRecord}
+          onPlayAgain={() => {
             setBaseline(null);
-            setMeterKey((k) => k + 1);
+            setGameKey((k) => k + 1);
+            setView("calibrating");
           }}
+          onViewHistory={() => setView("history")}
+        />
+      )}
+
+      {view === "history" && (
+        <SessionHistory
+          sessions={loadSessions()}
+          onBack={() => setView(lastRecord ? "summary" : "calibrating")}
         />
       )}
     </main>
