@@ -1,0 +1,98 @@
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.card {
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.card button {
+  font-size: 1rem;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  background: #2b6cb0;
+  color: white;
+  cursor: pointer;
+}
+
+.card button:hover {
+  background: #2c5282;
+}
+
+.countdown {
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.error {
+  color: #c0392b;
+}
+
+.baseline-summary {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.meter-track {
+  position: relative;
+  width: 60px;
+  height: 240px;
+  background: #eee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  transition: height 80ms linear;
+}
+
+.meter-fill.above-target {
+  background: #38a169;
+}
+
+.meter-fill.below-target {
+  background: #a0aec0;
+}
+
+.meter-target-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: #d69e2e;
+  z-index: 1;
+}
+
+.status-good {
+  color: #2f855a;
+  font-weight: 600;
+}
+
+.status-low {
+  color: #718096;
+}
+
+.stat {
+  font-size: 0.9rem;
+  color: #444;
+}
