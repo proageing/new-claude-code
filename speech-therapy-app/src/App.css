@@ -54,9 +54,14 @@
   color: var(--text-muted);
 }
 
+.status-good,
+.status-low {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
 .status-good {
   color: var(--status-good);
-  font-weight: 600;
 }
 
 .status-low {

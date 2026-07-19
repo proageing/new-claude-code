@@ -8,6 +8,8 @@
   --accent-hover: #2c5282;
   --sky-top: #bee3f8;
   --sky-bottom: #ebf8ff;
+  --zone-good-top: #b6ecc8;
+  --zone-good-bottom: #ddf5e4;
   --target-line: #d69e2e;
   --ground: #68843a;
   --status-good: #2f855a;
@@ -46,6 +48,8 @@
     --accent-hover: #90cdf4;
     --sky-top: #1e3a5f;
     --sky-bottom: #0f1d2e;
+    --zone-good-top: #1c3a2c;
+    --zone-good-bottom: #16281e;
     --target-line: #ecc94b;
     --ground: #5f9c5a;
     --status-good: #68d391;
@@ -67,6 +71,8 @@
   --accent-hover: #90cdf4;
   --sky-top: #1e3a5f;
   --sky-bottom: #0f1d2e;
+  --zone-good-top: #1c3a2c;
+  --zone-good-bottom: #16281e;
   --target-line: #ecc94b;
   --ground: #5f9c5a;
   --status-good: #68d391;
@@ -85,6 +91,8 @@
   --accent-hover: #2c5282;
   --sky-top: #bee3f8;
   --sky-bottom: #ebf8ff;
+  --zone-good-top: #b6ecc8;
+  --zone-good-bottom: #ddf5e4;
   --target-line: #d69e2e;
   --ground: #68843a;
   --status-good: #2f855a;

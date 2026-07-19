@@ -8,7 +8,16 @@
   position: relative;
   width: 160px;
   height: 320px;
-  background: linear-gradient(to bottom, var(--sky-top), var(--sky-bottom));
+  /* Hard color stop at 50% (the target line's fixed position): green above
+     -- "you're on target, stay here" -- neutral blue below, so the goal
+     reads as a zone to reach rather than a line to interpret. */
+  background: linear-gradient(
+    to bottom,
+    var(--zone-good-top) 0%,
+    var(--zone-good-bottom) 50%,
+    var(--sky-top) 50%,
+    var(--sky-bottom) 100%
+  );
   border-radius: 8px;
   overflow: hidden;
 }

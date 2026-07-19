@@ -116,6 +116,10 @@ export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECON
       <h2>Keep the balloon aloft</h2>
       <p className="countdown-small">{remainingSeconds}s remaining</p>
 
+      <p className={isAboveTarget ? "status-good" : "status-low"}>
+        {isAboveTarget ? "▲ Loud and clear — stay here!" : "▼ Project louder to reach the green"}
+      </p>
+
       <div className="sky">
         <div className="target-line" />
         <div className="balloon" style={{ bottom: `${displayAltitude}%` }} role="img" aria-label="balloon">
@@ -123,10 +127,6 @@ export function BalloonGame({ baseline, durationSeconds = DEFAULT_DURATION_SECON
         </div>
         <div className="ground" />
       </div>
-
-      <p className={isAboveTarget ? "status-good" : "status-low"}>
-        {isAboveTarget ? "Loud and clear — rising!" : "Project louder to climb"}
-      </p>
 
       {/* Temporary while we're still tuning the physics against real voices —
           remove once the feel is validated. */}
