@@ -4,7 +4,7 @@ import AVFoundation
 struct ContentView: View {
     @State private var heartRateText = "--"
     @State private var speedText = "--"
-    @State private var statusMessage = "Tap the button below to check your workout and hear it read aloud."
+    @State private var statusMessage = "Waiting for workout data…"
     private let synthesizer = AVSpeechSynthesizer()
 
     var body: some View {
@@ -24,7 +24,7 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            Button("Refresh & Speak", action: refreshAndSpeak)
+            Button("Speak Now", action: speakNow)
                 .buttonStyle(.borderedProminent)
 
             Text("Tip: once installed, just say “Hey Siri, get my stats” with your AirPods in — no need to open this app.")
@@ -35,30 +35,45 @@ struct ContentView: View {
         .padding()
         .task {
             try? await HealthKitManager.shared.requestAuthorization()
+            await refreshLoop()
         }
     }
 
-    private func refreshAndSpeak() {
+    /// Keeps the on-screen numbers current while the app is open, polling
+    /// every few seconds since HealthKit only has whatever the Watch has
+    /// synced so far — a single fetch can't be any fresher than that.
+    private func refreshLoop() async {
+        while !Task.isCancelled {
+            await refresh()
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+        }
+    }
+
+    private func refresh() async {
+        do {
+            let stats = try await HealthKitManager.shared.fetchLatestStats()
+            heartRateText = stats.heartRate.map { String(Int($0.rounded())) } ?? "--"
+            speedText = stats.speed.map { String(format: "%.1f", $0 * 2.23694) } ?? "--"
+            statusMessage = stats.hasActiveWorkout ? "Workout detected — updating live." : "No active workout detected on your Apple Watch."
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    private func speakNow() {
         Task {
-            do {
-                let stats = try await HealthKitManager.shared.fetchLatestStats()
-                heartRateText = stats.heartRate.map { String(Int($0.rounded())) } ?? "--"
-                speedText = stats.speed.map { String(format: "%.1f", $0 * 2.23694) } ?? "--"
-                statusMessage = stats.hasActiveWorkout ? "Workout detected." : "No active workout detected on your Apple Watch."
-                speak(heartRate: stats.heartRate, speedMetersPerSecond: stats.speed)
-            } catch {
-                statusMessage = error.localizedDescription
-            }
+            await refresh()
+            speak(heartRateText: heartRateText, speedText: speedText)
         }
     }
 
-    private func speak(heartRate: Double?, speedMetersPerSecond: Double?) {
+    private func speak(heartRateText: String, speedText: String) {
         var phrase = ""
-        if let heartRate {
-            phrase += "Heart rate: \(Int(heartRate.rounded())) beats per minute. "
+        if heartRateText != "--" {
+            phrase += "Heart rate: \(heartRateText) beats per minute. "
         }
-        if let speedMetersPerSecond {
-            phrase += "Speed: \(String(format: "%.1f", speedMetersPerSecond * 2.23694)) miles per hour."
+        if speedText != "--" {
+            phrase += "Speed: \(speedText) miles per hour."
         }
         if phrase.isEmpty {
             phrase = "No recent heart rate or speed data found."
