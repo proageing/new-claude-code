@@ -4,7 +4,7 @@ import AppIntents
 /// without opening the app and has Siri speak the result out loud.
 struct GetWorkoutStatsIntent: AppIntent {
     static var title: LocalizedStringResource = "Get Workout Stats"
-    static var description = IntentDescription("Reads your current heart rate and speed from your in-progress Apple Watch workout.")
+    static var description = IntentDescription("Reads your current heart rate, speed, and distance from your in-progress Apple Watch workout.")
     static var openAppWhenRun: Bool = false
 
     @MainActor
@@ -31,9 +31,13 @@ struct GetWorkoutStatsIntent: AppIntent {
             let mph = speed * 2.23694
             parts.append("your speed is \(String(format: "%.1f", mph)) miles per hour")
         }
+        if let distance = stats.distance {
+            let miles = distance * 0.000621371
+            parts.append("you've covered \(String(format: "%.2f", miles)) miles")
+        }
 
         guard !parts.isEmpty else {
-            return "I don't have recent heart rate or speed data yet."
+            return "I don't have recent heart rate, speed, or distance data yet."
         }
         let sentence = parts.joined(separator: ", and ") + "."
         return sentence.prefix(1).uppercased() + sentence.dropFirst()
