@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  These keys need to exist in your app target's Info tab (Xcode adds most
+  Info.plist entries there directly — you don't edit a raw plist file by
+  hand for a SwiftUI App-lifecycle project). Add each key/value below as a
+  new row in Target > Info.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSHealthShareUsageDescription</key>
+    <string>Workout Voice Stats reads your heart rate and speed from an active Apple Watch workout so it can read them back to you.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>Workout Voice Stats does not write any Health data.</string>
+</dict>
+</plist>
