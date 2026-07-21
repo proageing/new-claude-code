@@ -9,12 +9,16 @@ final class HealthKitManager {
     private let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate)!
     private let runningSpeedType = HKQuantityType.quantityType(forIdentifier: .runningSpeed)!
     private let cyclingSpeedType = HKQuantityType.quantityType(forIdentifier: .cyclingSpeed)!
-    private let workoutType = HKObjectType.workoutType()
 
     struct Stats {
         let heartRate: Double?   // beats per minute
         let speed: Double?       // meters per second
         let hasActiveWorkout: Bool
+    }
+
+    private struct Sample {
+        let value: Double
+        let date: Date
     }
 
     enum HealthKitError: LocalizedError {
@@ -28,39 +32,34 @@ final class HealthKitManager {
 
     func requestAuthorization() async throws {
         guard HKHealthStore.isHealthDataAvailable() else { throw HealthKitError.notAvailable }
-        let readTypes: Set<HKObjectType> = [heartRateType, runningSpeedType, cyclingSpeedType, workoutType]
+        let readTypes: Set<HKObjectType> = [heartRateType, runningSpeedType, cyclingSpeedType]
         try await store.requestAuthorization(toShare: [], read: readTypes)
     }
 
     /// Reads the most recent heart rate and speed samples HealthKit has received
     /// from the active Apple Watch workout (the stock Workout app syncs these
     /// every few seconds, so expect a short delay rather than a truly live feed).
+    ///
+    /// There's no HealthKit object for an in-progress workout (HKWorkout only
+    /// exists once a workout ends), so "active" is inferred from freshness:
+    /// a heart rate or speed sample within the last 30 seconds strongly implies
+    /// a workout is currently running, since that cadence only happens then.
     func fetchLatestStats() async throws -> Stats {
-        async let active = fetchActiveWorkoutExists()
-        async let hr = fetchLatestQuantity(for: heartRateType, unit: HKUnit.count().unitDivided(by: .minute()))
-        async let runSpeed = fetchLatestQuantity(for: runningSpeedType, unit: HKUnit.meter().unitDivided(by: .second()))
-        async let cycleSpeed = fetchLatestQuantity(for: cyclingSpeedType, unit: HKUnit.meter().unitDivided(by: .second()))
+        async let hr = fetchLatestSample(for: heartRateType, unit: HKUnit.count().unitDivided(by: .minute()))
+        async let runSpeed = fetchLatestSample(for: runningSpeedType, unit: HKUnit.meter().unitDivided(by: .second()))
+        async let cycleSpeed = fetchLatestSample(for: cyclingSpeedType, unit: HKUnit.meter().unitDivided(by: .second()))
 
-        let (hasActiveWorkout, heartRate, running, cycling) = try await (active, hr, runSpeed, cycleSpeed)
-        return Stats(heartRate: heartRate, speed: running ?? cycling, hasActiveWorkout: hasActiveWorkout)
+        let (heartRate, running, cycling) = try await (hr, runSpeed, cycleSpeed)
+        let speed = running ?? cycling
+
+        let recentThreshold = Date().addingTimeInterval(-30)
+        let hasActiveWorkout = (heartRate?.date ?? .distantPast) > recentThreshold
+            || (speed?.date ?? .distantPast) > recentThreshold
+
+        return Stats(heartRate: heartRate?.value, speed: speed?.value, hasActiveWorkout: hasActiveWorkout)
     }
 
-    private func fetchActiveWorkoutExists() async -> Bool {
-        await withCheckedContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: Date().addingTimeInterval(-6 * 60 * 60), end: nil, options: .strictStartDate)
-            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-            let query = HKSampleQuery(sampleType: workoutType, predicate: predicate, limit: 1, sortDescriptors: [sort]) { _, samples, _ in
-                let workout = samples?.first as? HKWorkout
-                // Treat a workout as "active" if it ended in the last 15 minutes or
-                // hasn't formally ended yet (endDate keeps advancing while it's live).
-                let stillActive = workout.map { $0.endDate > Date().addingTimeInterval(-15 * 60) } ?? false
-                continuation.resume(returning: stillActive)
-            }
-            store.execute(query)
-        }
-    }
-
-    private func fetchLatestQuantity(for type: HKQuantityType, unit: HKUnit) async throws -> Double? {
+    private func fetchLatestSample(for type: HKQuantityType, unit: HKUnit) async throws -> Sample? {
         try await withCheckedThrowingContinuation { continuation in
             let predicate = HKQuery.predicateForSamples(withStart: Date().addingTimeInterval(-5 * 60), end: nil, options: .strictStartDate)
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
@@ -73,7 +72,7 @@ final class HealthKitManager {
                     continuation.resume(returning: nil)
                     return
                 }
-                continuation.resume(returning: sample.quantity.doubleValue(for: unit))
+                continuation.resume(returning: Sample(value: sample.quantity.doubleValue(for: unit), date: sample.startDate))
             }
             store.execute(query)
         }
